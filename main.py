@@ -26,7 +26,7 @@ from torchvision.utils import make_grid
 from torchvision import transforms
 from torchvision import models, datasets
 
-from config import parser  
+from config_args import parser  
 import common_tools as ct 
 from data.tinyImageNet import tinyImageNetVague 
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16
@@ -121,6 +121,7 @@ def train(epochs, model, lr, train_loader, val_loader,
 
 
 def main():
+    print("Test git")
     num_comp = args.num_comp
     save_dir = args.save_dir
     model_save_dir = os.path.join(save_dir, "models_ResNet")
@@ -144,11 +145,12 @@ def main():
 
     if args.backbone == "EfficientNet":
         model = HENN_EfficientNet(dataset.kappa).to(device)
-    if args.backbone == "ResNet50":
+    elif args.backbone == "ResNet50":
         model = HENN_ResNet50(dataset.kappa).to(device)
-    if args.backbone == "VGG16":
+    elif args.backbone == "VGG16":
         model = HENN_VGG16(dataset.kappa).to(device)
-    
+    else:
+        print(f"### The backbone {args.backbone} is invalid!")
     W = dataset.num_classes 
     a = torch.div(torch.ones(dataset.num_classes), dataset.num_classes).to(device)
     vague_classes_ids = dataset.vague_classes_ids

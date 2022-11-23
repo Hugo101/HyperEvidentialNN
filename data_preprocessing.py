@@ -37,3 +37,4 @@
 #     vague_idx = vague_indexes[8]
 #     printImage(test_ds[vague_idx][0], test_ds[vague_idx][1])
 
+print("Test")
