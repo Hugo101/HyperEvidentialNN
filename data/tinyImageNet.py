@@ -1,12 +1,12 @@
 # to standardize the datasets used in the experiments
-# datasets are CIFAR10, CIFAR100 and Tiny ImageNet
+# datasets are TinyImageNet, and CIFAR100 (later)
 # use create_val_folder() function to convert original Tiny ImageNet structure to structure PyTorch expects
 
-import torch
 import os
+import torch
 from torchvision import datasets, transforms, utils
 from torch.utils.data import sampler, random_split, DataLoader
-from torch.utils.data import DataLoader, TensorDataset, Dataset
+from torch.utils.data import TensorDataset, Dataset
 from torch.utils.data import Subset, ConcatDataset
 from PIL import Image
 import random
@@ -139,12 +139,12 @@ def get_sample_idx_by_class(dataset, num_classes):
         sample_idx_by_class[dataset[i][1]].append(i)
     return sample_idx_by_class
 
-def train_valid_ds(dataset, num_classes, perc=0):
+def train_valid_split(dataset, num_classes, valid_perc=0):
     train_class_indices = []
     valid_class_indices = []
     sample_idx_by_class = get_sample_idx_by_class(dataset, num_classes)
     for samples in sample_idx_by_class:
-        valid_samples = random.sample(samples, int(len(samples)*perc))
+        valid_samples = random.sample(samples, int(len(samples)*valid_perc))
         valid_class_indices.append(valid_samples)
         train_class_indices.append(list(set(samples)-set(valid_samples)))
     valid_ds = Subset(dataset, valid_class_indices[0])
@@ -179,7 +179,15 @@ def make_vague_samples(dataset, num_single, num_single_comp, vague_classes_ids, 
     return dataset
 
 class tinyImageNetVague():
-    def __init__(self, root_dir, batch_size=128, augment=True, num_comp=1, imagenet_hierarchy_path="./"):
+    def __init__(
+        self, 
+        root_dir, 
+        num_comp=1, 
+        batch_size=128, 
+        augment=True,
+        ratio_train=0.9, 
+        imagenet_hierarchy_path="./"
+        ):
         self.name = "tinyimagenet"
         print('Loading TinyImageNet...')
         self.batch_size = batch_size
@@ -189,7 +197,6 @@ class tinyImageNetVague():
         self.kappa = self.num_classes + self.num_comp
         num_train = 100000
         self.num_test = 10000
-        ratio_train = 0.9
         self.num_train = int(num_train * ratio_train)
         self.num_val = num_train - self.num_train
         
@@ -201,24 +208,27 @@ class tinyImageNetVague():
             self.class_wnids.add(subclass)
         
         preprocess_transform_pretrain = transforms.Compose([
-                        transforms.Resize(256), # Resize images to 256 x 256
+                        transforms.Resize(256),     # Resize images to 256 x 256
                         transforms.CenterCrop(224), # Center crop image
                         transforms.RandomHorizontalFlip()
         ])
         train_ds_original = datasets.ImageFolder(train_dir, transform=preprocess_transform_pretrain)
-        test_ds = datasets.ImageFolder(val_img_dir, transform=preprocess_transform_pretrain)
+        test_ds_original = datasets.ImageFolder(val_img_dir, transform=preprocess_transform_pretrain)
         self.class_to_idx = train_ds_original.class_to_idx
         # classes_to_idx
         # {'n01443537': 0,
         #  'n01629819': 1,
-        #  'n01641577': 2,
         #  ...
         # 'n12267677': 199}
 
         self.hierarchy = self.get_hierarchy(imagenet_hierarchy_path) 
         self.parent_to_subclasses = self.get_ParentToSubclasses()
         self.candidate_superclasses = get_candidate_vague_classes(self.parent_to_subclasses)
-        self.vague_classes_nids, self.vague_classes_ids = get_vague_classes() 
+        print(f"Total {len(self.candidate_superclasses)} Candidate superclasses: {self.candidate_superclasses}")
+        self.vague_classes_nids, self.vague_classes_ids = self.get_vague_classes_v2() 
+        print(f"Vague classes nid: {self.vague_classes_nids}")
+        print(f"Vague classes ids: {self.vague_classes_ids}")
+        
         self.idx_to_class = {value:key for key, value in self.class_to_idx.items()}
         for i in range(self.num_comp):
             self.idx_to_class[self.num_classes + i] = [self.idx_to_class[k] for k in self.vague_classes_ids[i]]
@@ -227,28 +237,34 @@ class tinyImageNetVague():
         # 199: 'n12267677',
         # 200: ['n07871810', 'n07873807', 'n07875152']}
 
-        train_ds = make_vague_samples(train_ds_original, self.num_classes, self.kappa, self.vague_classes_ids)
-        test_ds = make_vague_samples(test_ds, self.num_classes, self.kappa, self.vague_classes_ids)
-        train_ds, valid_ds = train_valid_ds(train_ds, self.num_classes, perc=1-ratio_train)
+        train_ds = make_vague_samples(
+            train_ds_original, 
+            self.num_classes, self.kappa, 
+            self.vague_classes_ids)
+        test_ds = make_vague_samples(
+            test_ds_original, 
+            self.num_classes, self.kappa, 
+            self.vague_classes_ids)
+        train_ds, valid_ds = train_valid_split(train_ds, self.kappa, valid_perc=1-ratio_train)
 
-        print(f'Data splitted. training, validation, test size: {len(train_ds), len(valid_ds), len(test_ds)}')
+        print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
 
-        preprocess_normalization = transforms.Compose([transforms.ToTensor(),
-                                                       transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-                                                                            std =[0.229, 0.224, 0.225])])
-        train_ds = CustomDataset(subset=train_ds, transform=preprocess_normalization)
-        valid_ds = CustomDataset(subset=valid_ds, transform=preprocess_normalization)
-        test_ds = CustomDataset(subset=test_ds, transform=preprocess_normalization)
+        pre_norm = transforms.Compose([
+            transforms.ToTensor(), 
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406], 
+                std =[0.229, 0.224, 0.225])])
+        train_ds = CustomDataset(subset=train_ds, transform=pre_norm)
+        valid_ds = CustomDataset(subset=valid_ds, transform=pre_norm)
+        test_ds = CustomDataset(subset=test_ds, transform=pre_norm)
         # # device = torch.device('cuda:0')
         # device = get_default_device()
         # print(device)
-        self.train_dl = DataLoader(train_ds, batch_size, shuffle=True, num_workers=1, pin_memory=True)
+        self.train_loader = DataLoader(train_ds, batch_size, shuffle=True, num_workers=1, pin_memory=True)
         # train_dl = DeviceDataLoader(train_dl, device)
-
-        self.valid_dl = DataLoader(valid_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
+        self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
         # valid_dl = DeviceDataLoader(valid_dl, device)
-
-        self.test_dl = DataLoader(test_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
+        self.test_loader = DataLoader(test_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
         # test_dl = DeviceDataLoader(test_dl, device)
 
     def get_hierarchy(self, imagenet_hierarchy_path):
@@ -270,6 +286,7 @@ class tinyImageNetVague():
             hierarchy = [line for line in reader]
         hierarchy = remove_dummy(hierarchy)
         return hierarchy 
+
 
     def get_ParentToSubclasses(self):
         '''
@@ -296,14 +313,16 @@ class tinyImageNetVague():
         #     cnt_classes_rest += len(subclasses)
         # print("The num of subclasses in parent_to_subclass: ", cnt_classes_rest) # 175
         return parent_to_subclass
-        
-    def get_vague_classes(self):
-        vague_classes = random.sample(self.candidate_superclasses, self.num_comp)
-        print(f'randomly selecting {self.num_comp} vague superclasses from {len(self.candidate_superclasses)} \
-                candidate superclasses:\n {vague_classes}')
-        vague_subs_nids = [[self.parent_to_subclasses[super_class]] for super_class in vague_classes]
+
+
+    def get_vague_classes_v2(self):
+        # vague_classes = random.sample(self.candidate_superclasses, self.num_comp)
+        vague_classes = ["n03419014"] #todo: fixed this for now
+        vague_subs_nids = [self.parent_to_subclasses[super_class] for super_class in vague_classes]
         vague_subs_ids = [[self.class_to_idx[sub] for sub in super] for super in vague_subs_nids]
         # C = [[classes_to_idx[sub_class] for sub_class in parent_to_subclass[super_class]] for super_class in vague_classes]
+        
+        print(f'Vague classes: {vague_classes}')
         return vague_subs_nids, vague_subs_ids
 
     
@@ -363,7 +382,7 @@ def get_vague_classes(candidate_superclasses, num_comp, classes_to_idx, parent_t
     # Vague class idx:204, wnID: n03743902: ['n02892201', 'n04486054']
 
 if __name__ == '__main__':
-
+    ##### For further double checking, please check the corresponding notebook
     # # double check 1
     # for superClass in parent_to_subclass:
     #     if superClass in tinyImageNet_class_wnids:
