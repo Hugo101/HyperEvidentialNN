@@ -76,3 +76,15 @@ def set_random_seeds(seed=1):
     if torch.cuda.is_available():
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+
+class Dict(dict):
+    __setattr__ = dict.__setitem__
+    __getattr__ = dict.__getitem__
+
+def dictToObj(dictObj):
+    if not isinstance(dictObj, dict):
+        return dictObj
+    d = Dict()
+    for k, v in dictObj.items():
+        d[k] = dictToObj(v)
+    return d

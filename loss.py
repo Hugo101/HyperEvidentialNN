@@ -1,6 +1,9 @@
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 from common_tools import set_device
+
+kl_loss = nn.KLDivLoss(reduction="batchmean")
 
 ### ### The followings are for ENN mainly
 def relu_evidence(y):
@@ -50,87 +53,84 @@ def loglikelihood_loss(y, alpha, device=None):
 
 
 def mse_loss(
-    y, alpha, epoch_num, num_classes, 
-    annealing_step, kl_lam, 
-    anneal=False, kl_reg=True, 
+    y, alpha, num_classes, 
+    kl_reg=True, 
     device=None):
     if not device:
         device = set_device()
     y = y.to(device)
     alpha = alpha.to(device)
     loglikelihood = loglikelihood_loss(y, alpha, device=device)
-
+    ll_mean = torch.mean(loglikelihood)
+    
     if not kl_reg:
-        return loglikelihood
+        return ll_mean, 0
 
     kl_alpha = (alpha - 1) * (1 - y) + 1
     kl_term = kl_divergence(kl_alpha, num_classes, device=device)
-    
-    if anneal:
-        annealing_coef = torch.min(
-            torch.tensor(1.0, dtype=torch.float32),
-            torch.tensor(epoch_num / annealing_step, dtype=torch.float32),
-        )    
-        kl_div = annealing_coef * kl_term
-    else:
-        kl_div = kl_lam * kl_term
-
-    return loglikelihood + kl_div
+    kl_mean = torch.mean(kl_term)
+    return ll_mean, kl_mean
 
 
 def edl_loss(
-    func, y, alpha, epoch_num, num_classes, 
-    annealing_step, kl_lam, 
-    anneal=False, kl_reg=True, 
+    func, y, alpha, num_classes, 
+    kl_reg=True, 
     device=None):
     y = y.to(device)
     alpha = alpha.to(device)
     S = torch.sum(alpha, dim=1, keepdim=True)
-
     A = torch.sum(y * (func(S) - func(alpha)), dim=1, keepdim=True)
+    A_mean = torch.mean(A)
 
     if not kl_reg:
-        return A 
+        return A_mean, 0
+    
     kl_alpha = (alpha - 1) * (1 - y) + 1
     kl_term = kl_divergence(kl_alpha, num_classes, device=device)
-    
-    if anneal:
-        annealing_coef = torch.min(
-            torch.tensor(1.0, dtype=torch.float32),
-            torch.tensor(epoch_num / annealing_step, dtype=torch.float32),
-        )
-        kl_div = annealing_coef * kl_term
-    else:
-        #todo 
-        kl_div = kl_lam * kl_term
-
-    return A + kl_div
+    kl_mean = torch.mean(kl_term)
+    return A_mean, kl_mean
 
 
 def edl_mse_loss(
     output, target, epoch_num, num_classes, 
     annealing_step, kl_lam, 
-    anneal=False, kl_reg=True, 
+    kl_lam_pretrain, 
+    entropy_lam, 
+    anneal=False, 
+    kl_reg=True,
+    kl_reg_pretrain=False,
+    entropy_reg=False, 
     device=None):
     if not device:
         device = set_device()
+    if not kl_reg:
+        assert anneal == False
     # evidence = relu_evidence(output)
     evidence = output
     alpha = evidence + 1
-    loss = torch.mean(
-        mse_loss(
-            target, alpha, epoch_num, num_classes, 
-            annealing_step, kl_lam, 
-            anneal=anneal, kl_reg=kl_reg, 
-            device=device
+    ll_mean, kl_mean = mse_loss(
+        target, alpha, num_classes, 
+        kl_reg=kl_reg, 
+        device=device
         )
-    )
-    return loss
 
-# todo:
+    if anneal:
+        annealing_coef = torch.min(
+            torch.tensor(1.0, dtype=torch.float32),
+            torch.tensor(epoch_num / annealing_step, dtype=torch.float32),
+        )    
+        kl_div = annealing_coef * kl_mean
+    else:
+        kl_div = kl_lam * kl_mean
+
+    loss = ll_mean + kl_div
+    return loss, ll_mean.detach().cpu().item(), kl_mean.detach().cpu().item()
+
+
 def edl_log_loss(
     output, target, epoch_num, num_classes, 
-    annealing_step, 
+    annealing_step, kl_lam,
+    anneal=False, 
     kl_reg=True, 
     device=None):
     if not device:
@@ -139,34 +139,100 @@ def edl_log_loss(
     alpha = evidence + 1
     loss = torch.mean(
         edl_loss(
-            torch.log, target, alpha, epoch_num, num_classes, annealing_step, kl_reg=kl_reg, device=device
-        )
-    )
-    return loss
-
-
-def edl_digamma_loss(
-    output, target, epoch_num, num_classes, 
-    annealing_step, kl_lam, 
-    anneal=False, kl_reg=True, 
-    device=None
-):
-    if not device:
-        device = set_device()
-    # evidence = relu_evidence(output)
-    evidence = output
-    alpha = evidence + 1
-    loss = torch.mean(
-        edl_loss(
-            torch.digamma, target, alpha, epoch_num, num_classes, 
+            torch.log, target, alpha, epoch_num, num_classes, 
             annealing_step, kl_lam, 
             anneal=anneal, kl_reg=kl_reg, 
             device=device
         )
     )
     return loss
+
+
+# Expected Cross Entropy 
+def edl_digamma_loss(
+    output, target, epoch_num, num_classes, 
+    annealing_step, kl_lam,
+    kl_lam_pretrain, 
+    entropy_lam, 
+    pretrainedProb,
+    forward,
+    anneal=False, 
+    kl_reg=True,
+    kl_reg_pretrain=False,
+    entropy_reg=False,
+    exp_type=2,
+    device=None
+):
+    if not device:
+        device = set_device()
+    if not kl_reg:
+        assert anneal == False
+    # evidence = relu_evidence(output)
+    evidence = output
+    alpha = evidence + 1
+
+    ll_mean, kl_mean = edl_loss(
+        torch.digamma, target, alpha, num_classes, 
+        kl_reg=kl_reg, 
+        device=device
+        )
+
+    if anneal:
+        annealing_coef = torch.min(
+            torch.tensor(1.0, dtype=torch.float32),
+            torch.tensor(epoch_num / annealing_step, dtype=torch.float32),
+        )
+        kl_div = annealing_coef * kl_mean
+    else:
+        kl_div = kl_lam * kl_mean
+        
+    # loss = ll_mean + kl_div
+    
+    # Cross Entropy calculated based on expected class probabilities
+    if exp_type == 2:
+        ce = nll(alpha, target)
+        loss = ll_mean + kl_div + ce
+        return loss, ll_mean.detach().cpu().item(), kl_div.detach().cpu().item(), ce.detach().cpu().item() 
+    
+    #  KL divergence between 
+    # expected class probabilities and 
+    # the class probabilities predicted by detNN 
+    if exp_type == 3:
+        kl = KL_expectedProbSL_pretrainedProb(alpha, pretrainedProb, forward=forward)
+        loss = ll_mean + kl_div + kl_lam_pretrain * kl
+        return loss, ll_mean.detach().cpu().item(), kl_div.detach().cpu().item(), kl.detach().cpu().item()
+    
+    # Entropy
+    if exp_type == 4:
+        entropy = entropy_SL(alpha)
+        loss = ll_mean - entropy_lam * entropy
+        return loss, ll_mean.detach().cpu().item(), entropy.detach().cpu().item()
 ### ### 
 
+
+def KL_expectedProbSL_pretrainedProb(alpha, pretrainedProb, forward=True):
+    S = torch.sum(alpha, dim=1, keepdims=True)
+    prob = alpha / S
+    if forward:
+        kl = kl_loss(torch.log(prob), pretrainedProb)
+    else:
+        kl = kl_loss(torch.log(pretrainedProb), prob)
+    return kl
+
+
+def nll(alpha, p_target):
+    S = torch.sum(alpha, dim=1, keepdims=True)
+    prob = alpha / S
+    ce = F.nll_loss(torch.log(prob), p_target.max(1)[1])
+    return ce 
+
+
+def entropy_SL(alpha):
+    S = torch.sum(alpha, dim=1, keepdims=True)
+    prob = alpha / S
+    entropy = - prob * torch.log(prob)
+    entropy_s = torch.sum(entropy, dim=1)
+    return entropy_s
 
 
 ## the followings are for HENN mainly 

@@ -236,7 +236,11 @@ class tinyImageNetVague():
         # 1: 'n01629819',
         # 199: 'n12267677',
         # 200: ['n07871810', 'n07873807', 'n07875152']}
-
+        self.R = [[el] for el in range(self.num_classes)] 
+        for el in self.vague_classes_ids:
+            self.R.append(el)
+        print(f"Actual label sets\n R: {self.R}")
+    
         train_ds = make_vague_samples(
             train_ds_original, 
             self.num_classes, self.kappa, 

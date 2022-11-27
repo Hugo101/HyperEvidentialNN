@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn 
-import torchvision.models
 from torchvision import models, datasets
 from efficientnet_pytorch import EfficientNet
 
@@ -17,6 +16,17 @@ class HENN_EfficientNet(nn.Module):
         logits = self.output(logits)
         return logits
 
+
+class EfficientNet_pretrain(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+
+        # EfficientNet
+        self.network = EfficientNet.from_pretrained("efficientnet-b3", num_classes=num_classes)
+
+    def forward(self, x):
+        logits = self.network(x)
+        return logits
 
 
 class HENN_ResNet50(nn.Module):
