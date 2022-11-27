@@ -148,7 +148,7 @@ def train_model(
                                 exp_type=exp_type, 
                                 device=device)
                         if exp_type == 3: #expected_CE + KL + KL_pretrain
-                            pretrainedModel = EfficientNet_pretrain()
+                            pretrainedModel = EfficientNet_pretrain(num_classes)
                             checkpoint = torch.load(saved_path_pretrain)
                             pretrainedModel.load_state_dict(checkpoint["model_state_dict"])
                             pretrainedModel.eval()

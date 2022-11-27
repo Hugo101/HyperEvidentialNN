@@ -232,7 +232,8 @@ def entropy_SL(alpha):
     prob = alpha / S
     entropy = - prob * torch.log(prob)
     entropy_s = torch.sum(entropy, dim=1)
-    return entropy_s
+    entropy_m = torch.mean(entropy_s)
+    return entropy_m
 
 
 ## the followings are for HENN mainly 
