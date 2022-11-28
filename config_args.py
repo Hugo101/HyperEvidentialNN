@@ -6,12 +6,16 @@ parser.add_argument(
     '--data_dir', default='/data/cxl173430/HyperEvidentialNN/TinyImageNet/', 
     type=str, help='dataset directory'
     )
+# PDML2: '/home/cxl173430/Documents/projects/uncertainty_Related/HENN_originalNotebooks/'
+# PDML4: '/home/cxl173430/Projects/uncertainty_Related/HENN_originalNotebooks/'
 
 parser.add_argument(
     "--output_folder", default="/data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results", 
     type=str, help="where results will be saved."
 )
-# "/home/cxl173430/Documents/projects/uncertainty_Related/ENN_reg_Git_VScode/ENN_reg_Results"
+# PDML2: /home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/
+# PDML4: /home/cxl173430/Projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results
+
 parser.add_argument(
     "--saved_spec_dir", default="Debug", 
     type=str, help="specific experiment path."

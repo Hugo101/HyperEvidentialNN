@@ -10,7 +10,14 @@ from helper_functions import one_hot_embedding
 from test import evaluate_vague_nonvague_ENN
 from backbones import EfficientNet_pretrain
 
+#PDML:
 saved_path_pretrain = "/data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
+
+#PDML2:
+# saved_path_pretrain = "/home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
+
+#PDML4:
+# saved_path_pretrain = "/home/cxl173430/Projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
 
 def train_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2, epoch_loss_3):
     if expType == 0:
@@ -19,9 +26,9 @@ def train_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2, epoc
     if expType == 1:
         wandb.log({
             f"{phase} epoch": epoch, f"{phase} loss": loss, 
-            "{phase} loss_1": epoch_loss_1, 
-            "{phase} loss_2_kl": epoch_loss_2, 
-            "{phase} acc": acc}, step=epoch)
+            f"{phase} loss_1": epoch_loss_1, 
+            f"{phase} loss_2_kl": epoch_loss_2, 
+            f"{phase} acc": acc}, step=epoch)
         print(
             f"{phase.capitalize()} loss: {loss:.4f}\
                 (loss_1: {epoch_loss_1:.4f},\
@@ -30,10 +37,10 @@ def train_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2, epoc
     if expType == 2:
         wandb.log({
             f"{phase} epoch": epoch, f"{phase} loss": loss, 
-            "{phase} loss_1": epoch_loss_1, 
-            "{phase} loss_2_kl": epoch_loss_2,
-            "{phase} loss_3_ce": epoch_loss_3,  
-            "{phase} acc": acc}, step=epoch)
+            f"{phase} loss_1": epoch_loss_1, 
+            f"{phase} loss_2_kl": epoch_loss_2,
+            f"{phase} loss_3_ce": epoch_loss_3,  
+            f"{phase} acc": acc}, step=epoch)
         print(
             f"{phase.capitalize()} loss: {loss:.4f} \
                 (loss_1: {epoch_loss_1:.4f}, \
@@ -43,10 +50,10 @@ def train_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2, epoc
     if expType == 3:
         wandb.log({
             f"{phase} epoch": epoch, f"{phase} loss": loss, 
-            "{phase} loss_1": epoch_loss_1, 
-            "{phase} loss_2_kl": epoch_loss_2,
-            "{phase} loss_3_kl_pretrain": epoch_loss_3,  
-            "{phase} acc": acc}, step=epoch)
+            f"{phase} loss_1": epoch_loss_1, 
+            f"{phase} loss_2_kl": epoch_loss_2,
+            f"{phase} loss_3_kl_pretrain": epoch_loss_3,  
+            f"{phase} acc": acc}, step=epoch)
         print(
             f"{phase.capitalize()} loss: {loss:.4f} \
                 (loss_1: {epoch_loss_1:.4f}, \
@@ -56,9 +63,9 @@ def train_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2, epoc
     if expType == 4:
         wandb.log({
             f"{phase} epoch": epoch, f"{phase} loss": loss, 
-            "{phase} loss_1": epoch_loss_1, 
-            "{phase} loss_2_entropy": epoch_loss_2, 
-            "{phase} acc": acc}, step=epoch)
+            f"{phase} loss_1": epoch_loss_1, 
+            f"{phase} loss_2_entropy": epoch_loss_2, 
+            f"{phase} acc": acc}, step=epoch)
         print(
             f"{phase.capitalize()} loss: {loss:.4f} \
                 (loss_1: {epoch_loss_1:.4f}, \
@@ -89,7 +96,13 @@ def train_model(
     wandb.watch(model, log="all", log_freq=100)
 
     since = time.time()
-
+    
+    pretrainedModel = EfficientNet_pretrain(num_classes)
+    checkpoint = torch.load(saved_path_pretrain)
+    pretrainedModel.load_state_dict(checkpoint["model_state_dict"])
+    pretrainedModel.eval()
+    pretrainedModel = pretrainedModel.to(device)
+    
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
     best_epoch = 0
@@ -129,7 +142,7 @@ def train_model(
                 # track history if only in train
                 with torch.set_grad_enabled(phase == "train"):
                     if uncertainty:
-                        y = one_hot_embedding(labels, num_classes)
+                        y = one_hot_embedding(labels, num_classes, device)
                         y = y.to(device)
                         outputs = model(inputs)
                         _, preds = torch.max(outputs, 1)
@@ -148,13 +161,9 @@ def train_model(
                                 exp_type=exp_type, 
                                 device=device)
                         if exp_type == 3: #expected_CE + KL + KL_pretrain
-                            pretrainedModel = EfficientNet_pretrain(num_classes)
-                            checkpoint = torch.load(saved_path_pretrain)
-                            pretrainedModel.load_state_dict(checkpoint["model_state_dict"])
-                            pretrainedModel.eval()
                             with torch.no_grad():
                                 logits = pretrainedModel(inputs)
-                                pretrainedProb = F.softmax(logits)
+                                pretrainedProb = F.softmax(logits, dim=1)
                             loss, loss_first, loss_second, loss_third = criterion(
                                 outputs, y.float(), epoch, num_classes, 
                                 None, kl_lam, kl_lam_pretrain, None, 

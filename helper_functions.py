@@ -3,9 +3,9 @@ from torch.utils.data import DataLoader, TensorDataset, Dataset
 import matplotlib.pyplot as plt
 from sklearn import metrics
 
-def one_hot_embedding(labels, num_classes=10):
+def one_hot_embedding(labels, num_classes=10, device='cpu'):
     # Convert to One Hot Encoding
-    y = torch.eye(num_classes)
+    y = torch.eye(num_classes).to(device)
     return y[labels]
 
 class CustomDataset(Dataset):
