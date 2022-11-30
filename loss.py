@@ -114,6 +114,9 @@ def edl_mse_loss(
         device=device
         )
 
+    if not kl_reg:
+        return ll_mean, ll_mean.detach().cpu().item(), 0
+    
     if anneal:
         annealing_coef = torch.min(
             torch.tensor(1.0, dtype=torch.float32),

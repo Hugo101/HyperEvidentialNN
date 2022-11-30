@@ -97,11 +97,12 @@ def train_model(
 
     since = time.time()
     
-    pretrainedModel = EfficientNet_pretrain(num_classes)
-    checkpoint = torch.load(saved_path_pretrain)
-    pretrainedModel.load_state_dict(checkpoint["model_state_dict"])
-    pretrainedModel.eval()
-    pretrainedModel = pretrainedModel.to(device)
+    if exp_type == 3:
+        pretrainedModel = EfficientNet_pretrain(num_classes)
+        checkpoint = torch.load(saved_path_pretrain, map_location='cuda:2')
+        pretrainedModel.load_state_dict(checkpoint["model_state_dict"])
+        pretrainedModel.eval()
+        pretrainedModel = pretrainedModel.to(device)
     
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0

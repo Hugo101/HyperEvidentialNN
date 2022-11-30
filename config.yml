@@ -2,7 +2,7 @@ dataset: tinyImageNet
 backbone: EfficientNet-b3
 
 #experiment type
-experiment_type: 1
+exp_type: 1
 
 train: True
 test: True
