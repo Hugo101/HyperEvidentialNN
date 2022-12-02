@@ -10,7 +10,7 @@ from torch.utils.data import TensorDataset, Dataset
 from torch.utils.data import Subset, ConcatDataset
 from PIL import Image
 import random
-from helper_functions import CustomDataset 
+from helper_functions import CustomDataset, AddLabelDataset
 import csv
 import math  
 
@@ -155,6 +155,7 @@ def train_valid_split(dataset, num_classes, valid_perc=0):
     return train_ds, valid_ds
 
 def make_vague_samples(dataset, num_single, num_single_comp, vague_classes_ids, guass_blur_sigma = 15):
+    # dataset = CustomDataset(subset=dataset) #key!!!!!!!
     sample_indices = [i for i in range(len(dataset))]
     num_samples_subclass = len([i for i in range(len(dataset)) if dataset[i][1] == 0]) #500 for TinyImageNet train   
     for k in range(num_single, num_single_comp): # i.e.: 200, 201
@@ -171,12 +172,14 @@ def make_vague_samples(dataset, num_single, num_single_comp, vague_classes_ids, 
             # give new labels for vague images 
             vague_samples = CustomDataset(subset=vague_samples, 
                                         class_num=k, 
-                                        transform=transforms.GaussianBlur(kernel_size=(35, 45), 
-                                                                            sigma = guass_blur_sigma))
-                                                            
+                                        transform=transforms.GaussianBlur(
+                                                kernel_size=(35, 45), 
+                                                sigma = guass_blur_sigma))
+
             dataset = subset1 + nonvague_samples + vague_samples
             ### can we avoid changing the order of samples in dataset?
     return dataset
+
 
 class tinyImageNetVague():
     def __init__(
@@ -186,7 +189,8 @@ class tinyImageNetVague():
         batch_size=128, 
         augment=True,
         ratio_train=0.9, 
-        imagenet_hierarchy_path="./"
+        imagenet_hierarchy_path="./",
+        duplicate=False,
         ):
         self.name = "tinyimagenet"
         print('Loading TinyImageNet...')
@@ -240,7 +244,9 @@ class tinyImageNetVague():
         for el in self.vague_classes_ids:
             self.R.append(el)
         print(f"Actual label sets\n R: {self.R}")
-    
+
+        train_ds_original = AddLabelDataset(train_ds_original) #add an aditional label
+        test_ds_original = AddLabelDataset(test_ds_original)
         train_ds = make_vague_samples(
             train_ds_original, 
             self.num_classes, self.kappa, 
@@ -261,9 +267,9 @@ class tinyImageNetVague():
         train_ds = CustomDataset(subset=train_ds, transform=pre_norm)
         valid_ds = CustomDataset(subset=valid_ds, transform=pre_norm)
         test_ds = CustomDataset(subset=test_ds, transform=pre_norm)
-        # # device = torch.device('cuda:0')
-        # device = get_default_device()
-        # print(device)
+
+        if duplicate:
+            train_ds = self.modify_vague_samples(train_ds)
         self.train_loader = DataLoader(train_ds, batch_size, shuffle=True, num_workers=1, pin_memory=True)
         # train_dl = DeviceDataLoader(train_dl, device)
         self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
@@ -328,6 +334,22 @@ class tinyImageNetVague():
         
         print(f'Vague classes: {vague_classes}')
         return vague_subs_nids, vague_subs_ids
+    
+    
+    def modify_vague_samples(self, dataset):
+        C = self.vague_classes_ids
+        for k in range(self.num_classes, self.kappa): # K, kappa
+            idx1 = [i for i in range(len(dataset)) if dataset[i][2] != k]
+            idx2 = [i for i in range(len(dataset)) if dataset[i][2] == k] 
+
+            subset_1 = Subset(dataset, idx1)  # the rest 
+            subset_2 = Subset(dataset, idx2)  #vague composite k
+            copies = CustomDataset(subset=subset_2, class_num=C[k - self.num_classes][0])
+            for j in range(1, len(C[k - self.num_classes])):
+                copies += CustomDataset(subset=subset_2, class_num=C[k - self.num_classes][j])
+            dataset = subset_1 + copies
+        return dataset
+
 
     
 
