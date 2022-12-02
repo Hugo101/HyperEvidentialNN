@@ -131,9 +131,9 @@ def train_model(
             running_loss_1, running_loss_2, running_loss_3 = 0.0, 0.0, 0.0
             epoch_loss_1,    epoch_loss_2,    epoch_loss_3 = 0.0, 0.0, 0.0
             running_corrects = 0.0
-            correct = 0
+
             # Iterate over data.
-            for batch_idx, (inputs, labels) in enumerate(dataloader):
+            for batch_idx, (inputs, _, labels) in enumerate(dataloader):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
@@ -180,25 +180,6 @@ def train_model(
                                 kl_reg=kl_reg, entropy_reg=entropy_reg,
                                 exp_type=exp_type,
                                 device=device)
-
-                        # match = torch.reshape(torch.eq(preds, labels).float(), (-1, 1))
-                        # acc = torch.mean(match)
-                        # for debugging 
-                        # print(f"## For the current batch: loss {loss}, (loss_1 {loss_1}, loss_2 {regularizer*lambda_reg}, regularizer {regularizer}), acc {acc}, Counters: {Counter(preds.cpu().tolist())}")
-                        # preds_all.extend(preds.cpu().tolist())
-                        # evidence = outputs # # evidence = relu_evidence(outputs)
-                        # alpha = evidence + 1
-                        # u = num_classes / torch.sum(alpha, dim=1, keepdim=True)
-
-                        # total_evidence = torch.sum(evidence, 1, keepdim=True)
-                        # mean_evidence = torch.mean(total_evidence)
-                        
-                        # mean_evidence_succ = torch.sum(
-                        #     torch.sum(evidence, 1, keepdim=True) * match
-                        # ) / torch.sum(match + 1e-20)
-                        # mean_evidence_fail = torch.sum(
-                        #     torch.sum(evidence, 1, keepdim=True) * (1 - match)
-                        # ) / (torch.sum(torch.abs(1 - match)) + 1e-20)
 
                     else: #cross entropy 
                         outputs = model(inputs)

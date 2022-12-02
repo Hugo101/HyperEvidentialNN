@@ -19,8 +19,9 @@ from config_args import parser
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague 
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16
+from backbones import EfficientNet_pretrain
 from train import train_model
-from test import evaluate_vague_nonvague_ENN
+from test import evaluate_vague_nonvague_ENN, evaluate_nonvague_HENN_final
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 
 args = parser.parse_args()
@@ -64,15 +65,19 @@ def make(args):
         print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
     # elif args.dataset == "cifar100":
         # dataset = cifar100Vague()
-    num_classes_both = num_singles + num_comps
-    if args.backbone == "EfficientNet-b3":
-        model = HENN_EfficientNet(num_classes_both)
-    elif args.backbone == "ResNet50":
-        model = HENN_ResNet50(num_classes_both)
-    elif args.backbone == "VGG16":
-        model = HENN_VGG16(num_classes_both)
+        num_classes_both = num_singles + num_comps
+        if args.backbone == "EfficientNet-b3":
+            model = HENN_EfficientNet(num_classes_both)
+        elif args.backbone == "ResNet50":
+            model = HENN_ResNet50(num_classes_both)
+        elif args.backbone == "VGG16":
+            model = HENN_VGG16(num_classes_both)
+        else:
+            print(f"### ERROR: The backbone {args.backbone} is invalid!")
     else:
-        print(f"### ERROR: The backbone {args.backbone} is invalid!")
+        if args.backbone == "EfficientNet-b3":
+            model = EfficientNet_pretrain(num_singles)
+
     model = model.to(device)
 
     if use_uncertainty:
@@ -109,14 +114,8 @@ def main():
 
     mydata, num_singles, num_comps, model, criterion, optimizer, scheduler = make(args)
     num_classes = num_singles + num_comps
-    
+    print("Total number of classes to train: ", num_classes)
     # args.nbatches = mydata.nbatches
-    # num_comp = args.num_comp
-    # save_dir = args.save_dir
-    # model_save_dir = os.path.join(save_dir, "models_ResNet")
-    # if not os.path.exists(model_save_dir):
-    #     os.makedirs(model_save_dir)
-    # PATH_HENN = os.path.join(model_save_dir, "model_HENN.pt")
 
     if args.train:
         start = time.time()
@@ -182,11 +181,20 @@ def main():
         model_best_from_valid = copy.deepcopy(model)
         model_best_from_valid.load_state_dict(checkpoint["model_state_dict_best"]) 
 
-        # #Evaluation, Inference  
-        evaluate_vague_nonvague_ENN(model, mydata.test_loader, mydata.R, mydata.num_classes, None, device)
-
+        # #Evaluation, Inference
+        if args.vaguePred:
+            evaluate_vague_nonvague_ENN(model, mydata.test_loader, mydata.R, mydata.num_classes, None, device)
+        if args.nonVaguePred:
+            acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device)
+        print(f"### The acc of nonvague (singleton) after final epoch: {acc_nonvague:.4f}:\n")
+        
         print(f"### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
-        evaluate_vague_nonvague_ENN(model_best_from_valid, mydata.test_loader, mydata.R, mydata.num_classes, None, device, bestModel=True)
+        if args.vaguePred:
+            evaluate_vague_nonvague_ENN(model_best_from_valid, mydata.test_loader, mydata.R, mydata.num_classes, None, device, bestModel=True)
+        if args.nonVaguePred:
+            acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device)
+            print(f"### The acc of nonvague (singleton): {acc_nonvague:.4f}:\n")
+
         # draw_roc(model, test_dl)
 
     # W = mydata.num_classes 
@@ -202,26 +210,10 @@ def main():
     #     a_copy = torch.cat((a_copy, sum_base_rates.view(1)))
 
 
-    # if not args.resume:
-    #     specific_file_name = time.strftime('%Y-%m-%d-%H%M%S') + "_" + tag + "_" + '_'.join(
-    #         ['LabelRatio', str(args.ratio), '#ShotU', str(args.num_shots_unlabeled), '#InnerLR', str(args.step_size), 'Seed', str(args.seed), ])
-    #     specific_model_path = os.path.join(few_shot_path, specific_file_name)
-    #     ct.create_path(specific_model_path)
-    #     args.output_subfolder = os.path.abspath(specific_model_path)   # absolute path
-    # else:
-    #     args.output_subfolder = os.path.abspath(args.checkpoint_path)  # absolute path
-
-    # args.model_path = os.path.abspath(os.path.join(args.output_subfolder, 'best_model'))
-    # args.result_path = os.path.abspath(os.path.join(args.output_subfolder, 'best_model_valid_test_result.pkl'))
-    # # save the config, json is better here because it is easily to open directly
-    # with open(os.path.join(args.output_subfolder, 'config.json'), 'w') as f:
-    #     json.dump(vars(args), f, indent=2)
-
-
 if __name__ == "__main__":
     # tell wandb to get started
     print(config)
-    with wandb.init(project=f"ENN-Vague-{config['dataset']}", config=config):
+    with wandb.init(project=f"HENN-Vague-{config['dataset']}", config=config):
         config = wandb.config
         main()
 

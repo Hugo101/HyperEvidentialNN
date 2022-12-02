@@ -62,7 +62,7 @@ def evaluate(
     total_samples = 0
     val_losses = []
     for batch in val_loader:
-        images, labels = batch
+        images, _, labels = batch
         images, labels = images.to(device), labels.to(device)
         one_hot_labels = torch.nn.functional.one_hot(labels, num_classes=kappa)
         output = model(images)
@@ -87,7 +87,7 @@ def evaluate_vague_nonvague_ENN(model, val_loader, R, num_singles, epoch, device
     preds_all = []
     correct = 0
     for batch in val_loader:
-        images, labels = batch
+        images, _, labels = batch
         images, labels = images.to(device), labels.to(device)
         output = model(images)
         preds = output.argmax(dim=1)
@@ -119,38 +119,34 @@ def evaluate_vague_nonvague_ENN(model, val_loader, R, num_singles, epoch, device
     return acc 
 
 
-# @torch.no_grad()
-# def evaluate_vague_nonvague(model, val_loader, device):
-#     model.eval()
-#     outputs_all = []
-#     labels_all = []
+@torch.no_grad()
+def evaluate_nonvague_HENN_final(
+    model,
+    test_loader,
+    K,
+    device
+    ):
+    model.eval()
+    output_all = []
+    true_labels_all = []
+    # losses = []
+    for batch in test_loader:
+        images, single_labels_GT, _ = batch
+        images = images.to(device)
+        labels = single_labels_GT.to(device)
+        output = model(images)
+        output_all.append(output)
+        true_labels_all.append(labels)
+    output_all = torch.cat(output_all, dim=0)
+    true_labels = torch.cat(true_labels_all, dim=0)
 
-#     for batch in val_loader:
-#         images, labels = batch
-#         images, labels = images.to(device), labels.to(device)
-#         one_hot_labels = torch.nn.functional.one_hot(labels, num_classes=kappa)
-#         output = model(images)
-#         outputs_all.append(output)
-#         labels_all.append(labels)
-    
-#     outputs_all = torch.cat(outputs_all, dim=0)
-#     labels_all = torch.cat(labels_all, dim=0)
+    alpha = torch.add(output_all[:,:K], 1)
+    # Get the predicted prob and labels
+    p_exp = meanGDD(alpha, output_all)
+    predicted_labels = torch.argmax(p_exp, dim=1) # 
+    corr_num = torch.sum(true_labels.cpu() == predicted_labels.cpu())
 
-#     # results = calculate_metrics(output, labels)
-#     stat_result, GT_Pred_res = calculate_metrics(output, labels, R, K, W, a)
-    
-#     avg_js_vague = stat_result[0] / stat_result[2]
-#     print(f"Average Jaccard Similarity Vague Classes:{avg_js_vague}")
-#     avg_js_nonvague = stat_result[1] / stat_result[3]
-#     print(f"Average Jaccard Similarity Nonvague Classes:{avg_js_nonvague}")
-#     overall_js = (stat_result[0] + stat_result[1])/(stat_result[2] + stat_result[3])
-#     print(f"Overall JS: {overall_js}")
-#     js_result = [overall_js, avg_js_vague, avg_js_nonvague]
-    
-#     # check precision, recall, f-score for composite classes
-#     prec_recall_f = precision_recall_f(GT_Pred_res) 
-
-#     return js_result, prec_recall_f
+    return corr_num / len(true_labels)
 
 
 def precision_recall_f_v1(y_test, y_pred, num_singles):
@@ -273,24 +269,24 @@ def calculate_metrics_ENN(output, labels, R):
     return stat_result, GT_Pred_res
 
 
-def evaluate_set(model, data_loader, W, K, device):
-    vaguenesses = []
-    is_vague = []
-    for batch in data_loader:
-        images, labels = batch
-        images, labels = images.to(device), labels.to(device)
-        output = model(images)
-        b = output / (torch.sum(output, dim=1) + W)[:, None]
-        total_vaguenesses = torch.sum(b[:, K:], dim=1)
-        is_vague += [y >= K for y in labels.detach().cpu().numpy().tolist()]
-        vaguenesses += total_vaguenesses.detach().cpu().numpy().tolist()
-    return is_vague, vaguenesses         
+# def evaluate_set(model, data_loader, W, K, device):
+#     vaguenesses = []
+#     is_vague = []
+#     for batch in data_loader:
+#         images, labels = batch
+#         images, labels = images.to(device), labels.to(device)
+#         output = model(images)
+#         b = output / (torch.sum(output, dim=1) + W)[:, None]
+#         total_vaguenesses = torch.sum(b[:, K:], dim=1)
+#         is_vague += [y >= K for y in labels.detach().cpu().numpy().tolist()]
+#         vaguenesses += total_vaguenesses.detach().cpu().numpy().tolist()
+#     return is_vague, vaguenesses         
 
 
-def draw_roc(model, data_loader):
-    is_vague, vaguenesses = evaluate_set(model, data_loader)
-    fpr, tpr, thresholds = metrics.roc_curve(is_vague, vaguenesses)
-    plt.plot(fpr, tpr)
-    plt.ylabel('True Positive Rate')
-    plt.xlabel('false Positive Rate')
-    plt.show()
+# def draw_roc(model, data_loader):
+#     is_vague, vaguenesses = evaluate_set(model, data_loader)
+#     fpr, tpr, thresholds = metrics.roc_curve(is_vague, vaguenesses)
+#     plt.plot(fpr, tpr)
+#     plt.ylabel('True Positive Rate')
+#     plt.xlabel('false Positive Rate')
+#     plt.show()
