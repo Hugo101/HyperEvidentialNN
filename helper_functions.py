@@ -8,6 +8,18 @@ def one_hot_embedding(labels, num_classes=10, device='cpu'):
     y = torch.eye(num_classes).to(device)
     return y[labels]
 
+
+class AddLabelDataset(Dataset):
+    def __init__(self, subset):
+        self.subset = subset
+
+    def __getitem__(self, index):
+        x, y = self.subset[index]
+        return x, y, y
+
+    def __len__(self):
+        return len(self.subset)
+
 class CustomDataset(Dataset):
     def __init__(self, subset, class_num=None, transform=None):
         self.subset = subset
@@ -15,13 +27,13 @@ class CustomDataset(Dataset):
         self.class_num = class_num
         
     def __getitem__(self, index):
-        x, y = self.subset[index]
+        x, y_truth_single, y = self.subset[index]
         if self.transform:
             x = self.transform(x)
         if self.class_num is not None:
-            return x, self.class_num
+            return x, y_truth_single, self.class_num
         else:
-            return x, y
+            return x, y_truth_single, y
         
     def __len__(self):
         return len(self.subset)
