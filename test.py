@@ -124,7 +124,9 @@ def evaluate_nonvague_HENN_final(
     model,
     test_loader,
     K,
-    device
+    device,
+    num_comp,
+    vague_classes_ids
     ):
     model.eval()
     output_all = []
@@ -142,7 +144,8 @@ def evaluate_nonvague_HENN_final(
 
     alpha = torch.add(output_all[:,:K], 1)
     # Get the predicted prob and labels
-    p_exp = meanGDD(alpha, output_all)
+    p_exp = meanGDD(vague_classes_ids, alpha, output_all, K, num_comp, device)
+
     predicted_labels = torch.argmax(p_exp, dim=1) # 
     corr_num = torch.sum(true_labels.cpu() == predicted_labels.cpu())
 

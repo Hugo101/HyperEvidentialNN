@@ -185,15 +185,17 @@ def main():
         if args.vaguePred:
             evaluate_vague_nonvague_ENN(model, mydata.test_loader, mydata.R, mydata.num_classes, None, device)
         if args.nonVaguePred:
-            acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device)
-        print(f"### The acc of nonvague (singleton) after final epoch: {acc_nonvague:.4f}:\n")
+            # acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device)
+            acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device, mydata.num_comp, mydata.vague_classes_ids)
+        print(f"### The acc of nonvague (singleton) after final epoch: {acc_nonvague:.4f}.\n")
         
         print(f"### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
         if args.vaguePred:
             evaluate_vague_nonvague_ENN(model_best_from_valid, mydata.test_loader, mydata.R, mydata.num_classes, None, device, bestModel=True)
         if args.nonVaguePred:
-            acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device)
-            print(f"### The acc of nonvague (singleton): {acc_nonvague:.4f}:\n")
+            # acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device)
+            acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device, mydata.num_comp, mydata.vague_classes_ids)
+            print(f"### The acc of nonvague (singleton): {acc_nonvague:.4f}.\n")
 
         # draw_roc(model, test_dl)
 

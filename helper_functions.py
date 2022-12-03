@@ -10,24 +10,24 @@ def one_hot_embedding(labels, num_classes=10, device='cpu'):
 
 
 class AddLabelDataset(Dataset):
-    def __init__(self, subset):
-        self.subset = subset
+    def __init__(self, dataset):
+        self.dataset = dataset
 
     def __getitem__(self, index):
-        x, y = self.subset[index]
+        x, y = self.dataset[index]
         return x, y, y
 
     def __len__(self):
-        return len(self.subset)
+        return len(self.dataset)
 
 class CustomDataset(Dataset):
-    def __init__(self, subset, class_num=None, transform=None):
-        self.subset = subset
+    def __init__(self, dataset, class_num=None, transform=None):
+        self.dataset = dataset
         self.transform = transform
         self.class_num = class_num
         
     def __getitem__(self, index):
-        x, y_truth_single, y = self.subset[index]
+        x, y_truth_single, y = self.dataset[index]
         if self.transform:
             x = self.transform(x)
         if self.class_num is not None:
@@ -36,7 +36,7 @@ class CustomDataset(Dataset):
             return x, y_truth_single, y
         
     def __len__(self):
-        return len(self.subset)
+        return len(self.dataset)
 
 # not useful?
 def get_partitions(num_single, vague_classes_ids):
@@ -56,7 +56,8 @@ partition for GDD:
 '''
 
 
-def meanGDD(partitions, alpha, r, num_single, num_comp, device):
+def meanGDD(vague_classes_ids, alpha, r, num_single, num_comp, device):
+    partitions = get_partitions(num_single, vague_classes_ids)
     # Probably from page 102 in the book 
     num_partitions = len(partitions)
 

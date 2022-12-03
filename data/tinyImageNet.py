@@ -155,7 +155,6 @@ def train_valid_split(dataset, num_classes, valid_perc=0):
     return train_ds, valid_ds
 
 def make_vague_samples(dataset, num_single, num_single_comp, vague_classes_ids, guass_blur_sigma = 15):
-    # dataset = CustomDataset(subset=dataset) #key!!!!!!!
     sample_indices = [i for i in range(len(dataset))]
     num_samples_subclass = len([i for i in range(len(dataset)) if dataset[i][1] == 0]) #500 for TinyImageNet train   
     for k in range(num_single, num_single_comp): # i.e.: 200, 201
@@ -170,7 +169,7 @@ def make_vague_samples(dataset, num_single, num_single_comp, vague_classes_ids, 
 
             nonvague_samples, vague_samples = random_split(subset2, [num_nonvague, num_vague])
             # give new labels for vague images 
-            vague_samples = CustomDataset(subset=vague_samples, 
+            vague_samples = CustomDataset(vague_samples, 
                                         class_num=k, 
                                         transform=transforms.GaussianBlur(
                                                 kernel_size=(35, 45), 
@@ -200,9 +199,9 @@ class tinyImageNetVague():
         self.num_comp = num_comp
         self.kappa = self.num_classes + self.num_comp
         num_train = 100000
-        self.num_test = 10000
         self.num_train = int(num_train * ratio_train)
         self.num_val = num_train - self.num_train
+        self.num_test = 10000
         
         train_dir = os.path.join(root_dir, 'tiny-imagenet-200/train')
         val_img_dir = os.path.join(root_dir, 'tiny-imagenet-200/val/images')
@@ -264,9 +263,9 @@ class tinyImageNetVague():
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406], 
                 std =[0.229, 0.224, 0.225])])
-        train_ds = CustomDataset(subset=train_ds, transform=pre_norm)
-        valid_ds = CustomDataset(subset=valid_ds, transform=pre_norm)
-        test_ds = CustomDataset(subset=test_ds, transform=pre_norm)
+        train_ds = CustomDataset(train_ds, transform=pre_norm)
+        valid_ds = CustomDataset(valid_ds, transform=pre_norm)
+        test_ds = CustomDataset(test_ds, transform=pre_norm)
 
         if duplicate:
             train_ds = self.modify_vague_samples(train_ds)
@@ -344,14 +343,14 @@ class tinyImageNetVague():
 
             subset_1 = Subset(dataset, idx1)  # the rest 
             subset_2 = Subset(dataset, idx2)  #vague composite k
-            copies = CustomDataset(subset=subset_2, class_num=C[k - self.num_classes][0])
+            copies = CustomDataset(subset_2, class_num=C[k - self.num_classes][0])
             for j in range(1, len(C[k - self.num_classes])):
-                copies += CustomDataset(subset=subset_2, class_num=C[k - self.num_classes][j])
+                copies += CustomDataset(subset_2, class_num=C[k - self.num_classes][j])
             dataset = subset_1 + copies
         return dataset
 
 
-    
+
 
 # The following are only for double checking  
 def nIDs_to_names(DATA_DIR, class_wnids, parent_to_subclass):
