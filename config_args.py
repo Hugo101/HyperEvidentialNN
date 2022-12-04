@@ -3,16 +3,18 @@ import argparse
 parser = argparse.ArgumentParser(description='Process some fixed parameters.')
 
 parser.add_argument(
-    '--data_dir', default='/data/cxl173430/HyperEvidentialNN/TinyImageNet/', 
+    '--data_dir', default='/home/cxl173430/Documents/projects/uncertainty_Related/HENN_originalNotebooks/', 
     type=str, help='dataset directory'
     )
-# PDML2: '/home/cxl173430/Documents/projects/uncertainty_Related/HENN_originalNotebooks/'
-# PDML4: '/home/cxl173430/Projects/uncertainty_Related/HENN_originalNotebooks/'
+# PDML : /data/cxl173430/HyperEvidentialNN/TinyImageNet/
+# PDML2: /home/cxl173430/Documents/projects/uncertainty_Related/HENN_originalNotebooks/
+# PDML4: /home/cxl173430/Projects/uncertainty_Related/HENN_originalNotebooks/
 
 parser.add_argument(
-    "--output_folder", default="/data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results", 
+    "--output_folder", default="/home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/", 
     type=str, help="where results will be saved."
 )
+# PDML : /data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results
 # PDML2: /home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/
 # PDML4: /home/cxl173430/Projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results
 

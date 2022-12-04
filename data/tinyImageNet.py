@@ -139,6 +139,7 @@ def get_sample_idx_by_class(dataset, num_classes):
         sample_idx_by_class[dataset[i][1]].append(i)
     return sample_idx_by_class
 
+
 def train_valid_split(dataset, num_classes, valid_perc=0):
     train_class_indices = []
     valid_class_indices = []
