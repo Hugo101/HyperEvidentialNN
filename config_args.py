@@ -3,7 +3,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Process some fixed parameters.')
 
 parser.add_argument(
-    '--data_dir', default='/home/cxl173430/Documents/projects/uncertainty_Related/HENN_originalNotebooks/', 
+    '--data_dir', default='/home/cxl173430/DATASETS', 
     type=str, help='dataset directory'
     )
 # PDML : /data/cxl173430/HyperEvidentialNN/TinyImageNet/

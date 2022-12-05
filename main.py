@@ -17,7 +17,8 @@ import torch.nn.functional as F
 
 from config_args import parser  
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
-from data.tinyImageNet import tinyImageNetVague 
+from data.tinyImageNet import tinyImageNetVague
+from data.cifar100 import CIFAR100Vague
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16
 from backbones import EfficientNet_pretrain
 from train import train_model
@@ -63,8 +64,6 @@ def make(args):
         num_singles = mydata.num_classes
         num_comps = mydata.num_comp
         print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
-    # elif args.dataset == "cifar100":
-        # dataset = cifar100Vague()
         num_classes_both = num_singles + num_comps
         if args.backbone == "EfficientNet-b3":
             model = HENN_EfficientNet(num_classes_both)
@@ -73,10 +72,26 @@ def make(args):
         elif args.backbone == "VGG16":
             model = HENN_VGG16(num_classes_both)
         else:
-            print(f"### ERROR: The backbone {args.backbone} is invalid!")
-    else:
+            print(f"### ERROR {args.dataset}: The backbone {args.backbone} is invalid!")
+    
+    elif args.dataset == "cifar100":
+        mydata = CIFAR100Vague(
+            args.data_dir, 
+            num_comp=args.num_comp, 
+            batch_size=args.batch_size
+            )
+        num_singles = mydata.num_classes
+        num_comps = mydata.num_comp
+        print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
+        num_classes_both = num_singles + num_comps
         if args.backbone == "EfficientNet-b3":
-            model = EfficientNet_pretrain(num_singles)
+            model = HENN_EfficientNet(num_classes_both)
+        elif args.backbone == "ResNet50":
+            model = HENN_ResNet50(num_classes_both)
+        elif args.backbone == "VGG16":
+            model = HENN_VGG16(num_classes_both)
+        else:
+            print(f"### ERROR {args.dataset}: The backbone {args.backbone} is invalid!")
 
     model = model.to(device)
 

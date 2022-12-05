@@ -211,7 +211,8 @@ class CIFAR100Vague:
         vague_classes = ["people"]
         comp_el_size = 2
         
-        vague_subs_nids = [random.sample(self.parent_to_subclasses[super],comp_el_size) for super in vague_classes]
+        # vague_subs_nids = [random.sample(self.parent_to_subclasses[super],comp_el_size) for super in vague_classes]
+        vague_subs_nids = [['baby', 'woman']]
         vague_subs_ids = [[self.class_to_idx[sub] for sub in super] for super in vague_subs_nids]
 
         #   C = [[self.class_to_idx[sub] for sub in random.sample(self.parent_to_subclasses[super_class], comp_el_size)] for super_class in vague_classes]
