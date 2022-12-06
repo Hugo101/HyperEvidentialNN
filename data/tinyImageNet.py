@@ -291,7 +291,7 @@ class tinyImageNetVague():
         ]
 
         '''
-        with open(imagenet_hierarchy_path + 'ImageNetHierarchy.txt') as f:
+        with open(os.path.join(imagenet_hierarchy_path,'ImageNetHierarchy.txt')) as f:
             reader = csv.reader(f, delimiter=' ')
             hierarchy = [line for line in reader]
         hierarchy = remove_dummy(hierarchy)

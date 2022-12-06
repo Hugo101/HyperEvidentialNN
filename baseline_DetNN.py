@@ -390,18 +390,17 @@ def make(args):
             batch_size=args.batch_size,
             imagenet_hierarchy_path=args.data_dir,
             duplicate=True) #key duplicate 
-        print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
     elif args.dataset == "cifar100":
         mydata = CIFAR100Vague(
             args.data_dir, 
             num_comp=args.num_comp, 
             batch_size=args.batch_size,
             duplicate=True) #key duplicate
-        print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
-    
+
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
-
+    print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
+    
     if args.backbone == "EfficientNet-b3":
         model = EfficientNet_pretrain(num_singles)
     else:
