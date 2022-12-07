@@ -230,7 +230,7 @@ def main():
 if __name__ == "__main__":
     # tell wandb to get started
     print(config)
-    with wandb.init(project=f"HENN-Vague-{config['dataset']}", config=config):
+    with wandb.init(project=f"{config['dataset']}-{config['num_comp']}M-HENN", config=config):
         config = wandb.config
         main()
 

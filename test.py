@@ -8,7 +8,7 @@ from collections import Counter
 import wandb
 
 
-def test_result_log(js_result, prec_recall_f, acc, epoch, bestModel=False):
+def test_result_log(js_result, prec_recall_f, acc, acc_comp, acc_singl, epoch, bestModel=False):
     if bestModel:
         wandb.log({
             f"TestB OverallJS": js_result[0], 
@@ -17,7 +17,9 @@ def test_result_log(js_result, prec_recall_f, acc, epoch, bestModel=False):
             f"TestB CompPreci": prec_recall_f[0], 
             f"TestB CompRecal": prec_recall_f[1], 
             f"TestB CompFscor": prec_recall_f[2], 
-            f"TestB acc": acc}, step=epoch)
+            f"TestB acc": acc,
+            f"TestB acc_comp": acc_comp,
+            f"TestB acc_singl": acc_singl}, step=epoch)
         print(f"TestBest acc: {acc:.4f}, \n \
             JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
         return 
@@ -30,7 +32,9 @@ def test_result_log(js_result, prec_recall_f, acc, epoch, bestModel=False):
                 f"TestF CompPreci": prec_recall_f[0], 
                 f"TestF CompRecal": prec_recall_f[1], 
                 f"TestF CompFscor": prec_recall_f[2], 
-                f"TestF acc": acc}, step=epoch)
+                f"TestF acc": acc,
+                f"TestF acc_comp": acc_comp,
+                f"TestF acc_singl": acc_singl}, step=epoch)
             print(f"TestF acc: {acc:.4f}, \n \
                 JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
         else:
@@ -41,7 +45,9 @@ def test_result_log(js_result, prec_recall_f, acc, epoch, bestModel=False):
                 f"Test CompPreci": prec_recall_f[0], 
                 f"Test CompRecal": prec_recall_f[1], 
                 f"Test CompFscor": prec_recall_f[2], 
-                f"Test acc": acc}, step=epoch)
+                f"Test acc": acc,
+                f"Test acc_comp": acc_comp,
+                f"Test acc_singl": acc_singl}, step=epoch)
             print(f"Test acc: {acc:.4f}, \n \
                 JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
 
@@ -79,6 +85,14 @@ def evaluate(
     return results
 
 
+def acc_subset(idx, labels_true, labels_pred):
+    labels_true_subs = labels_true[idx]
+    labels_pred_subs = labels_pred[idx]
+    corr_subs = torch.sum(labels_true_subs == labels_pred_subs).item()
+    acc_subs = corr_subs / len(labels_true_subs)
+    return acc_subs
+
+
 @torch.no_grad()
 def evaluate_vague_nonvague_ENN(model, val_loader, R, num_singles, epoch, device, bestModel=False):
     model.eval()
@@ -101,6 +115,15 @@ def evaluate_vague_nonvague_ENN(model, val_loader, R, num_singles, epoch, device
     preds_all = torch.cat(preds_all, dim=0)
     acc = correct / len(labels_all)
 
+    # calculate the accuracy among singleton examples
+    # acc of composite examples
+    comp_idx = labels_all > num_singles-1
+    acc_comp = acc_subset(comp_idx, labels_all, preds_all)
+    
+    # acc of singleton examples
+    singl_idx = labels_all < num_singles
+    acc_singl = acc_subset(singl_idx, labels_all, preds_all)
+    
     stat_result, GT_Pred_res = calculate_metrics_ENN(outputs_all, labels_all, R)
 
     avg_js_nonvague = stat_result[0] / (stat_result[2]+1e-10)
@@ -114,7 +137,7 @@ def evaluate_vague_nonvague_ENN(model, val_loader, R, num_singles, epoch, device
     # check precision, recall, f-score for composite classes
     prec_recall_f = precision_recall_f_v1(labels_all, preds_all, num_singles) 
 
-    test_result_log(js_result, prec_recall_f, acc, epoch, bestModel)
+    test_result_log(js_result, prec_recall_f, acc, acc_comp, acc_singl, epoch, bestModel)
     
     return acc 
 

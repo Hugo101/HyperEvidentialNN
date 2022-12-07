@@ -11,10 +11,12 @@ from test import evaluate_vague_nonvague_ENN
 from backbones import EfficientNet_pretrain
 
 #PDML:
-saved_path_pretrain = "/data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
+# saved_path_pretrain = "/data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
 
 #PDML2:
 # saved_path_pretrain = "/home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
+
+saved_path_pretrain = "/mnt/data/home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/tiny/pretrain_lre-5/tiny_29_0.8490.pt"
 
 #PDML4:
 # saved_path_pretrain = "/home/cxl173430/Projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"

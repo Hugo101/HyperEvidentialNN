@@ -30,10 +30,10 @@ parser.add_argument(
     '--gpu', default=9, 
     type=int, help='The index of the gpu used'
     )
-parser.add_argument(
-    '--num_comp', default=1, 
-    type=int, help='The number of composite elements'
-    )
+# parser.add_argument(
+#     '--num_comp', default=1, 
+#     type=int, help='The number of composite elements'
+#     )
 
 # parser.add_argument(
     # '--backbone', default='EfficientNet', 

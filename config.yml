@@ -1,11 +1,14 @@
 dataset: tinyImageNet
 backbone: EfficientNet-b3
-
+num_comp: 1
 #experiment type
 exp_type: 1
 
 train: True
 test: True
+
+vaguePred: True
+nonVaguePred: True
 
 epochs: 3
 init_lr: 0.0001
