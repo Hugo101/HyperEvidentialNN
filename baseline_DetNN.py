@@ -76,7 +76,7 @@ def train_DetNN(
         for phase in ["train", "val"]:
             if phase == "train":
                 print("Training...")
-                print(f" get last lr:{scheduler.get_last_lr()}") if not scheduler else ""
+                print(f" get last lr:{scheduler.get_last_lr()}") if scheduler else ""
                 model.train()  # Set model to training mode
                 dataloader = mydata.train_loader 
             else:
@@ -414,7 +414,6 @@ def make(args):
 
 
 def main():
-    print('Random Seed: {}'.format(args.seed))
     set_random_seeds(args.seed)
 
     mydata, model, criterion, optimizer, scheduler = make(args)
@@ -440,7 +439,7 @@ def main():
         torch.save(state, saved_path)
         print(f"Saved: {saved_path}")
         end = time.time()
-        print(f'Total training time for ENN: {(end-start)//60:.0f}m {(end-start)%60:.0f}s')
+        print(f'Total training time for DNN: {(end-start)//60:.0f}m {(end-start)%60:.0f}s')
     
     if args.test:
         valid_loader = mydata.valid_loader

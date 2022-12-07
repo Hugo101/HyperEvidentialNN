@@ -15,13 +15,10 @@ from config_args import parser
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
-from backbones import EfficientNet_pretrain
+from backbones import HENN_EfficientNet, EfficientNet_pretrain
 from helper_functions import one_hot_embedding
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 from baseline_DetNN import evaluate_nonvague_final
-from baseline_DetNN import num_accurate_baseline
-from baseline_DetNN import get_cutoff
-from baseline_DetNN import calculate_metrics
 from baseline_DetNN import evaluate_vague_final
 from baseline_DetNN import test_result_log
 
@@ -116,7 +113,7 @@ def train_ENN(
         begin_epoch = time.time()
         # Each epoch has a training and validation phase
         print("Training...")
-        print(f" get last lr:{scheduler.get_last_lr()}") if not scheduler else ""
+        print(f" get last lr:{scheduler.get_last_lr()}") if scheduler else ""
         model.train()  # Set model to training mode
         dataloader = mydata.train_loader 
 
@@ -204,19 +201,32 @@ def make(args):
             batch_size=args.batch_size,
             imagenet_hierarchy_path=args.data_dir,
             duplicate=True) #key duplicate 
-        num_singles = mydata.num_classes
-        num_comps = mydata.num_comp
-        print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
-    # elif args.dataset == "cifar100":
-        # dataset = cifar100Vague()
 
-    if args.backbone == "EfficientNet-b3":
-        model = EfficientNet_pretrain(num_singles)
+    elif args.dataset == "cifar100":
+        mydata = CIFAR100Vague(
+            args.data_dir, 
+            num_comp=args.num_comp,
+            batch_size=args.batch_size,
+            duplicate=True) #key duplicate
+
+    num_singles = mydata.num_classes
+    num_comps = mydata.num_comp
+    print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
+
+    if use_uncertainty:
+        print("# use softplus activated model")
+        if args.backbone == "EfficientNet-b3":
+            model = HENN_EfficientNet(num_singles)
+        else:
+            print(f"### ERROR: The backbone {args.backbone} is invalid!")
     else:
-        print(f"### ERROR: The backbone {args.backbone} is invalid!")
+        print("# use regular model without activation (softmax will be used later")
+        if args.backbone == "EfficientNet-b3":
+            model = EfficientNet_pretrain(num_singles)
+        else:
+            print(f"### ERROR: The backbone {args.backbone} is invalid!")
     model = model.to(device)
 
-    
     if use_uncertainty:
         # if args.digamma:
         #     print("### Loss type: edl_digamma_loss")
@@ -239,7 +249,6 @@ def make(args):
 
 
 def main():
-    print('Random Seed: {}'.format(args.seed))
     set_random_seeds(args.seed)
 
     mydata, model, criterion, optimizer, scheduler = make(args)

@@ -66,6 +66,7 @@ def set_logger(log_file, mode):
 
 
 def set_random_seeds(seed=1):
+    print('Random Seed is set: {}'.format(seed))
     os.environ['PYTHONHASHSEED'] = str(seed)
 
     random.seed(seed)
