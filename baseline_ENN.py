@@ -13,7 +13,8 @@ from collections import Counter
 
 from config_args import parser
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
-from data.tinyImageNet import tinyImageNetVague 
+from data.tinyImageNet import tinyImageNetVague
+from data.cifar100 import CIFAR100Vague
 from backbones import EfficientNet_pretrain
 from helper_functions import one_hot_embedding
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
@@ -314,6 +315,6 @@ def main():
 if __name__ == "__main__":
     # tell wandb to get started
     print(config)
-    with wandb.init(project=f"ENN-Vague-{config['dataset']}-ENN", config=config):
+    with wandb.init(project=f"{config['dataset']}-{config['num_comp']}M-ENN", config=config):
         config = wandb.config
         main()
