@@ -3,12 +3,10 @@ import argparse
 parser = argparse.ArgumentParser(description='Process some fixed parameters.')
 
 parser.add_argument(
-    '--data_dir', default='/home/cxl173430/DATASETS', 
+    '--data_dir', default='/home/cxl173430/data/DATASETS', 
     type=str, help='dataset directory'
     )
-# PDML : /data/cxl173430/data/DATASETS/
-# PDML2: /data/cxl173430/DATASETS/
-# PDML4: /home/cxl173430/Projects/uncertainty_Related/HENN_originalNotebooks/
+# PDML 1/2/4 : /home/cxl173430/data/DATASETS/
 
 parser.add_argument(
     "--output_folder", default="/home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/", 

@@ -126,7 +126,7 @@ class CIFAR100Vague:
         batch_size=128,
         ratio_train=0.9,
         duplicate=False,
-        hierarchy_dir="/home/cxl173430/DATASETS/cifar100_henn/",
+        hierarchy_dir="/home/cxl173430/data/DATASETS/cifar100_henn/",
         ):
         self.name = "cifar100"
         print("Loading CIFAR100...")
