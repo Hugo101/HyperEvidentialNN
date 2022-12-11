@@ -467,7 +467,7 @@ def main():
         test_loader = mydata.test_loader
         R = mydata.R
         saved_path = os.path.join(base_path, "model_CrossEntropy.pt")
-        checkpoint = torch.load(saved_path, map_location="cuda:9")
+        checkpoint = torch.load(saved_path, map_location=device)
         model.load_state_dict(checkpoint["model_state_dict"])
 
         model_best_from_valid = copy.deepcopy(model)
