@@ -21,6 +21,7 @@ from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 from baseline_DetNN import evaluate_nonvague_final
 from baseline_DetNN import evaluate_vague_final
 from baseline_DetNN import test_result_log
+from helper_functions import js_subset
 
 args = parser.parse_args()
 opt = vars(args)
@@ -252,6 +253,7 @@ def main():
     set_random_seeds(args.seed)
 
     mydata, model, criterion, optimizer, scheduler = make(args)
+    num_singles = mydata.num_classes
 
     if args.train:
         start = time.time()
@@ -279,7 +281,9 @@ def main():
         print(f"Saved: {saved_path}")
         end = time.time()
         print(f'Total training time for ENN: {(end-start)//60:.0f}m {(end-start)%60:.0f}s')
-    
+    else:
+        print(f"## No training, load trained model directly")
+
     if args.test:
         valid_loader = mydata.valid_loader
         test_loader = mydata.test_loader
@@ -296,7 +300,7 @@ def main():
         else:
             saved_path = os.path.join(base_path, "model_CrossEntropy.pt")
 
-        checkpoint = torch.load(saved_path)
+        checkpoint = torch.load(saved_path, map_location="cuda:9")
         model.load_state_dict(checkpoint["model_state_dict"])
 
         model_best_from_valid = copy.deepcopy(model)
@@ -304,21 +308,21 @@ def main():
 
         # model after the final epoch
         if args.vaguePred:
-            js_result, prec_recall_f = evaluate_vague_final(
-                model, test_loader, valid_loader, R, device, 
+            js_result, prec_recall_f, js_comp, js_singl = evaluate_vague_final(
+                model, test_loader, valid_loader, R, num_singles, device, 
                 detNN=False)
         if args.nonVaguePred:
             acc_nonvague = evaluate_nonvague_final(model, test_loader, device)
-        test_result_log(js_result, prec_recall_f, acc_nonvague, False) # bestModel=False
+        test_result_log(js_result, prec_recall_f, acc_nonvague, js_comp, js_singl, False) # bestModel=False
 
         print(f"### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
         if args.vaguePred:
-            js_result, prec_recall_f = evaluate_vague_final(
-                model_best_from_valid, test_loader, valid_loader, R, device,
+            js_result, prec_recall_f, js_comp, js_singl = evaluate_vague_final(
+                model_best_from_valid, test_loader, valid_loader, R, num_singles,device,
                 detNN=False)
         if args.nonVaguePred:
             acc_nonvague = evaluate_nonvague_final(model_best_from_valid, test_loader, device)
-        test_result_log(js_result, prec_recall_f, acc_nonvague, True)
+        test_result_log(js_result, prec_recall_f, acc_nonvague, js_comp, js_singl, True)
 
 
 if __name__ == "__main__":

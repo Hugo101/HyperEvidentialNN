@@ -16,6 +16,7 @@ from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from backbones import EfficientNet_pretrain
+from helper_functions import js_subset
 
 args = parser.parse_args()
 opt = vars(args)
@@ -319,10 +320,11 @@ def precision_recall_f_v1(y_test, y_pred, num_singles):
 
 @torch.no_grad()
 def evaluate_vague_final(
-    model, 
-    test_loader, 
-    val_loader, 
-    R, 
+    model,
+    test_loader,
+    val_loader,
+    R,
+    num_singles,
     device,
     detNN=True):
     cutoff = get_cutoff(model, val_loader, R, device, detNN=detNN)
@@ -343,6 +345,18 @@ def evaluate_vague_final(
 
     outputs_all = torch.cat(outputs_all, dim=0)
     labels_all = torch.cat(labels_all, dim=0)
+    preds_all = torch.cat(preds_all, dim=0)
+    
+    # JS of composite examples
+    comp_idx = labels_all > num_singles-1
+    # acc_comp = acc_subset(comp_idx, labels_all, preds_all)
+    js_comp = js_subset(comp_idx, labels_all, preds_all, R)
+    
+    # JS of singleton examples
+    singl_idx = labels_all < num_singles
+    # acc_singl = acc_subset(singl_idx, labels_all, preds_all)
+    js_singl = js_subset(singl_idx, labels_all, preds_all, R)
+    
     stat_result, prec_recall_f = calculate_metrics(outputs_all, labels_all, R, cutoff, detNN=detNN)
 
     avg_js_nonvague = stat_result[0] / (stat_result[2]+1e-10)
@@ -350,30 +364,34 @@ def evaluate_vague_final(
     overall_js = (stat_result[0] + stat_result[1])/(stat_result[2] + stat_result[3]+1e-10)
     js_result = [overall_js, avg_js_vague, avg_js_nonvague]
 
-    return js_result, prec_recall_f
+    return js_result, prec_recall_f, js_comp, js_singl
 
 
-def test_result_log(js_result, prec_recall_f, acc, bestModel=False):
+def test_result_log(js_result, prec_recall_f, acc, js_comp, js_singl, bestModel=False):
     if bestModel:
         wandb.log({
-            f"TestB OverallJS": js_result[0], 
-            f"TestB CompJS": js_result[1], 
-            f"TestB SnglJS": js_result[2],
-            f"TestB CompPreci": prec_recall_f[0], 
-            f"TestB CompRecal": prec_recall_f[1], 
-            f"TestB CompFscor": prec_recall_f[2], 
-            f"TestB acc": acc})
+            f"TestB JSoverall": js_result[0], 
+            f"TestB JScomp": js_result[1], 
+            f"TestB JSsngl": js_result[2],
+            f"TestB CmpPreci": prec_recall_f[0], 
+            f"TestB CmpRecal": prec_recall_f[1], 
+            f"TestB CmpFscor": prec_recall_f[2], 
+            f"TestB accNonVague": acc,
+            f"TestB js_comp": js_comp,
+            f"TestB js_singl": js_singl})
         print(f"TestBest accNonVague: {acc:.4f}, \n \
             JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
     else:
         wandb.log({
-            f"TestF OverallJS": js_result[0], 
-            f"TestF CompJS": js_result[1], 
-            f"TestF SnglJS": js_result[2],
-            f"TestF CompPreci": prec_recall_f[0], 
-            f"TestF CompRecal": prec_recall_f[1], 
-            f"TestF CompFscor": prec_recall_f[2], 
-            f"TestF acc": acc})
+            f"TestF JSoverall": js_result[0], 
+            f"TestF JScomp": js_result[1], 
+            f"TestF JSsngl": js_result[2],
+            f"TestF CmpPreci": prec_recall_f[0], 
+            f"TestF CmpRecal": prec_recall_f[1], 
+            f"TestF CmpFscor": prec_recall_f[2], 
+            f"TestF accNonVague": acc,
+            f"TestF js_comp": js_comp,
+            f"TestF js_singl": js_singl})
         print(f"TestF accNonVague: {acc:.4f}, \n \
             JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
 
@@ -417,7 +435,8 @@ def main():
     set_random_seeds(args.seed)
 
     mydata, model, criterion, optimizer, scheduler = make(args)
-
+    num_singles = mydata.num_classes
+    
     if args.train:
         start = time.time()
         model, model_best, epoch_best = train_DetNN(
@@ -440,13 +459,15 @@ def main():
         print(f"Saved: {saved_path}")
         end = time.time()
         print(f'Total training time for DNN: {(end-start)//60:.0f}m {(end-start)%60:.0f}s')
+    else:
+        print(f"## No training, load trained model directly")
     
     if args.test:
         valid_loader = mydata.valid_loader
         test_loader = mydata.test_loader
         R = mydata.R
         saved_path = os.path.join(base_path, "model_CrossEntropy.pt")
-        checkpoint = torch.load(saved_path)
+        checkpoint = torch.load(saved_path, map_location="cuda:9")
         model.load_state_dict(checkpoint["model_state_dict"])
 
         model_best_from_valid = copy.deepcopy(model)
@@ -454,17 +475,17 @@ def main():
 
         # model after the final epoch
         if args.vaguePred:
-            js_result, prec_recall_f = evaluate_vague_final(model, test_loader, valid_loader, R, device)
+            js_result, prec_recall_f, js_comp, js_singl = evaluate_vague_final(model, test_loader, valid_loader, R, num_singles, device)
         if args.nonVaguePred:
             acc_nonvague = evaluate_nonvague_final(model, test_loader, device)
-        test_result_log(js_result, prec_recall_f, acc_nonvague, False) # bestModel=False
+        test_result_log(js_result, prec_recall_f, acc_nonvague, js_comp, js_singl, False) # bestModel=False
 
         print(f"### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
         if args.vaguePred:
-            js_result, prec_recall_f = evaluate_vague_final(model_best_from_valid, test_loader, valid_loader, R, device)
+            js_result, prec_recall_f, js_comp, js_singl = evaluate_vague_final(model_best_from_valid, test_loader, valid_loader, R, num_singles, device)
         if args.nonVaguePred:
             acc_nonvague = evaluate_nonvague_final(model_best_from_valid, test_loader, device)
-        test_result_log(js_result, prec_recall_f, acc_nonvague, True)
+        test_result_log(js_result, prec_recall_f, acc_nonvague, js_comp, js_singl, True)
 
 
 if __name__ == "__main__":

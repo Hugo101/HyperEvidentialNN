@@ -56,6 +56,50 @@ partition for GDD:
 '''
 
 
+def projection_prob(num_singles, num_comp, R, r):
+    '''
+    input: r: output of the model, shape: N*kappa
+    return: prob_exp: projected prob, shape: N*num_singles
+    '''
+    ## step 1: get the relative base rate matrix
+    #base rate for all classeses
+    kappa = num_singles + num_comp
+    base_rate = {}
+    for idx, clas in enumerate(R):
+        base_rate[tuple(clas)] = len(clas)/num_singles
+
+    # relative base rate matrix
+    relative_comp = torch.zeros(num_singles, num_comp)
+
+    for j in range(num_singles):
+        for c in range(num_comp):
+            if j in R[num_singles+c]:
+                relative_comp[j, c] = base_rate[tuple(R[j])]/base_rate[tuple(R[num_singles+c])]
+            else:
+                relative_comp[j, c] = 0
+    # print(relative_comp)
+
+    # eye matrix
+    relative_singl = torch.eye(num_singles)
+    relative_base_rate_mx = torch.cat([relative_singl, relative_comp], dim=1)
+    # return relative_base_rate 
+    #shape: num_singles * kappa
+
+    ## step 2: try the projection equation in the SL book
+    #shape: num_singles*kappa, kappa*num_num_samples
+    term1 = torch.mm(relative_base_rate_mx,  r.T)
+    
+    #base rate for singleton classes
+    ax = torch.ones(1, num_singles)
+    ax = ax / num_singles
+    W = len(R)
+    #numerator: num_singles*num_samples, num_singles*1
+    #denominator: 
+    prob_exp = (term1 + W*ax.T)/(W+torch.sum(r, dim=1))
+    
+    return prob_exp.T
+
+
 def meanGDD(vague_classes_ids, alpha, r, num_single, num_comp, device):
     partitions = get_partitions(num_single, vague_classes_ids)
     # Probably from page 102 in the book 
@@ -85,6 +129,24 @@ def meanGDD(vague_classes_ids, alpha, r, num_single, num_comp, device):
             p[:, k] = alpha[:, k] / beta_sum
 
     return p
+
+
+def js_subset(idx, labels_true, labels_pred, R):
+    labels_true_subs = labels_true[idx]
+    labels_pred_subs = labels_pred[idx]
+    length = len(labels_true_subs)
+    num_corr = 0.0
+    for i in range(length):
+        label_true = labels_true_subs[i]
+        label_pred = labels_pred_subs[i]
+        set_true = set(R[label_true])
+        set_pred = set(R[label_pred])
+        inter = set_true.intersection(set_pred)
+        union = set_true.union(set_pred)
+        num_corr += len(inter)/len(union)
+
+    acc = num_corr / length
+    return acc
 
 
 def numAccurate(r, labels, num_single, W, R, a):
