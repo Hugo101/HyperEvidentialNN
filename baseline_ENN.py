@@ -195,6 +195,9 @@ def make(args):
     num_singles = 0
     num_comps = 0
     use_uncertainty = args.uncertainty
+    milestone1 = args.milestone1
+    milestone2 = args.milestone2
+    
     if args.dataset == "tinyimagenet":
         mydata = tinyImageNetVague(
             args.data_dir, 
@@ -245,7 +248,7 @@ def make(args):
         criterion = nn.CrossEntropyLoss()
 
     optimizer = optim.Adam(model.parameters(), lr=args.init_lr)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[milestone1, milestone2], gamma=0.1)
     return mydata, model, criterion, optimizer, scheduler
 
 
