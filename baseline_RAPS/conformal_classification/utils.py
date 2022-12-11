@@ -10,6 +10,8 @@ import os
 import pickle
 from tqdm import tqdm
 import pdb
+from torch.utils.data import DataLoader, TensorDataset, Dataset
+import random
 
 def sort_sum(scores):
     I = scores.argsort(axis=1)[:,::-1]
@@ -154,8 +156,14 @@ def get_model(modelname):
     return model
 
 # Computes logits and targets from a model and loader
-def get_logits_targets(model, loader):
-    logits = torch.zeros((len(loader.dataset), 200)) # 1000 classes in Imagenet.
+def get_logits_targets(model, loader, dataset):
+    if dataset == "imagenet":
+        num_class = 1000
+    elif dataset == "tinyimagenet":
+        num_class = 200
+    elif dataset == "cifar100":
+        num_class = 100
+    logits = torch.zeros((len(loader.dataset), num_class)) # 1000 classes in Imagenet.
     labels = torch.zeros((len(loader.dataset),))
     i = 0
     print(f'Computing logits for model (only happens once).')
@@ -201,3 +209,32 @@ def get_logits_dataset(modelname, datasetname, datasetpath, cache=str(pathlib.Pa
         pickle.dump(dataset_logits, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     return dataset_logits
+
+
+
+
+# added by Changbin
+class ReduceLabelDataset(Dataset):
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __getitem__(self, index):
+        x, y_truth_single, y = self.dataset[index]
+        return x, y
+        
+    def __len__(self):
+        return len(self.dataset)
+    
+
+def set_random_seeds(seed=1):
+    print('Random Seed is set: {}'.format(seed))
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)  # CPU
+    torch.cuda.manual_seed(seed)  # current GPU
+    torch.cuda.manual_seed_all(seed)  # all， # if you are using multi-GPU.
+    if torch.cuda.is_available():
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False

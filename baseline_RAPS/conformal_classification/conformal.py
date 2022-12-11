@@ -14,16 +14,22 @@ import pdb
 # Save it to a file in .cache/modelname
 # The only difference is that the forward method of ConformalModel also outputs a set.
 class ConformalModel(nn.Module):
-    def __init__(self, model, calib_loader, alpha, kreg=None, lamda=None, randomized=True, allow_zero_sets=False, pct_paramtune = 0.3, batch_size=32, lamda_criterion='size'):
+    def __init__(self, model, calib_loader, dataset, alpha, kreg=None, lamda=None, randomized=True, allow_zero_sets=False, pct_paramtune = 0.3, batch_size=32, lamda_criterion='size'):
         super(ConformalModel, self).__init__()
         self.model = model 
         self.alpha = alpha
         self.T = torch.Tensor([1.3]) #initialize (1.3 is usually a good value)
-        self.T, calib_logits = platt(self, calib_loader)
+        self.T, calib_logits = platt(self, calib_loader, dataset)
         self.randomized=randomized
         self.allow_zero_sets=allow_zero_sets
         # self.num_classes = len(calib_loader.dataset.dataset.classes)
-        self.num_classes = 200 #for TinyImageNet
+        if dataset == "imagenet":
+            self.num_classes = 1000
+        elif dataset == "tinyimagenet":
+            self.num_classes = 200
+        elif dataset == "cifar100":
+            self.num_classes = 100
+
         if kreg == None or lamda == None:
             kreg, lamda, calib_logits = pick_parameters(model, calib_logits, alpha, kreg, lamda, randomized, allow_zero_sets, pct_paramtune, batch_size, lamda_criterion)
 
@@ -52,27 +58,27 @@ class ConformalModel(nn.Module):
         return logits, S
 
 # Computes the conformal calibration
-def conformal_calibration(cmodel, calib_loader):
-    print("Conformal calibration")
-    with torch.no_grad():
-        E = np.array([])
-        for x, targets in tqdm(calib_loader):
-            logits = cmodel.model(x.cuda()).detach().cpu().numpy()
-            scores = softmax(logits/cmodel.T.item(), axis=1)
+# def conformal_calibration(cmodel, calib_loader):
+#     print("Conformal calibration")
+#     with torch.no_grad():
+#         E = np.array([])
+#         for x, targets in tqdm(calib_loader):
+#             logits = cmodel.model(x.cuda()).detach().cpu().numpy()
+#             scores = softmax(logits/cmodel.T.item(), axis=1)
 
-            I, ordered, cumsum = sort_sum(scores)
+#             I, ordered, cumsum = sort_sum(scores)
 
-            E = np.concatenate((E,giq(scores,targets,I=I,ordered=ordered,cumsum=cumsum,penalties=cmodel.penalties,randomized=True, allow_zero_sets=True)))
+#             E = np.concatenate((E,giq(scores,targets,I=I,ordered=ordered,cumsum=cumsum,penalties=cmodel.penalties,randomized=True, allow_zero_sets=True)))
             
-        Qhat = np.quantile(E,1-cmodel.alpha,interpolation='higher')
+#         Qhat = np.quantile(E,1-cmodel.alpha,interpolation='higher')
 
-        return Qhat 
+#         return Qhat 
 
 # Temperature scaling
-def platt(cmodel, calib_loader, max_iters=10, lr=0.01, epsilon=0.01):
+def platt(cmodel, calib_loader, dataset, max_iters=10, lr=0.01, epsilon=0.01):
     print("Begin Platt scaling.")
     # Save logits so don't need to double compute them
-    logits_dataset = get_logits_targets(cmodel.model, calib_loader)
+    logits_dataset = get_logits_targets(cmodel.model, calib_loader, dataset)
     logits_loader = torch.utils.data.DataLoader(logits_dataset, batch_size = calib_loader.batch_size, shuffle=False, pin_memory=True)
 
     T = platt_logits(cmodel, logits_loader, max_iters=max_iters, lr=lr, epsilon=epsilon)
