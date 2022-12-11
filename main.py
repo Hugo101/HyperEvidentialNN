@@ -54,6 +54,8 @@ def make(args):
     num_comps = 0
     num_classes_both = 0 
     use_uncertainty = args.use_uncertainty
+    milestone1 = args.milestone1
+    milestone2 = args.milestone2
     
     if args.dataset == "tinyimagenet":
         mydata = tinyImageNetVague(
@@ -116,9 +118,7 @@ def make(args):
     # exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     # if args.pretrain:
         # exp_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50], gamma=0.1)
-    # else:
-    # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[50,75,90], gamma=0.1)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 150], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[milestone1, milestone2], gamma=0.1)
     return mydata, num_singles, num_comps, model, criterion, optimizer, scheduler
 
 
@@ -176,6 +176,8 @@ def main():
         print(f"Saved: {saved_path}")
         end = time.time()
         print(f'Total training time for HENN: %s seconds.'%str(end-start))
+    else:
+        print(f"## No training, load trained model directly")
 
 
     if args.test:
@@ -190,7 +192,7 @@ def main():
         else:
             saved_path = os.path.join(base_path, "model_CrossEntropy.pt")
         
-        checkpoint = torch.load(saved_path)
+        checkpoint = torch.load(saved_path, map_location="cuda:9")
         model.load_state_dict(checkpoint["model_state_dict"])
 
         model_best_from_valid = copy.deepcopy(model)
@@ -200,17 +202,15 @@ def main():
         if args.vaguePred:
             evaluate_vague_nonvague_ENN(model, mydata.test_loader, mydata.R, mydata.num_classes, None, device)
         if args.nonVaguePred:
-            # acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device)
-            acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device, mydata.num_comp, mydata.vague_classes_ids)
-        print(f"### The acc of nonvague (singleton) after final epoch: {acc_nonvague:.4f}.\n")
-        
-        print(f"### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
+            acc_nonvague1, acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device, mydata.num_comp, mydata.vague_classes_ids, mydata.R)
+        print(f"### The acc of nonvague (singleton) after final epoch: {acc_nonvague1:.4f}, {acc_nonvague:.4f}.\n")
+
+        print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
         if args.vaguePred:
             evaluate_vague_nonvague_ENN(model_best_from_valid, mydata.test_loader, mydata.R, mydata.num_classes, None, device, bestModel=True)
         if args.nonVaguePred:
-            # acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device)
-            acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device, mydata.num_comp, mydata.vague_classes_ids)
-            print(f"### The acc of nonvague (singleton): {acc_nonvague:.4f}.\n")
+            acc_nonvague1, acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device, mydata.num_comp, mydata.vague_classes_ids, mydata.R)
+            print(f"### The acc of nonvague (singleton): {acc_nonvague1:.4f}, {acc_nonvague:.4f}.\n")
 
         # draw_roc(model, test_dl)
 
