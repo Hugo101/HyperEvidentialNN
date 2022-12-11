@@ -16,6 +16,7 @@ from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from backbones import HENN_EfficientNet, EfficientNet_pretrain
+from backbones import HENN_ResNet50, ResNet50
 from helper_functions import one_hot_embedding
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 from baseline_DetNN import evaluate_nonvague_final
@@ -221,12 +222,16 @@ def make(args):
         print("# use softplus activated model")
         if args.backbone == "EfficientNet-b3":
             model = HENN_EfficientNet(num_singles)
+        elif args.backbone == "ResNet50":
+            model = HENN_ResNet50(num_singles)
         else:
             print(f"### ERROR: The backbone {args.backbone} is invalid!")
     else:
         print("# use regular model without activation (softmax will be used later")
         if args.backbone == "EfficientNet-b3":
             model = EfficientNet_pretrain(num_singles)
+        elif args.backbone == "ResNet50":
+            model = ResNet50(num_singles)
         else:
             print(f"### ERROR: The backbone {args.backbone} is invalid!")
     model = model.to(device)

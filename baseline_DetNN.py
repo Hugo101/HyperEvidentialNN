@@ -15,7 +15,7 @@ from config_args import parser
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
-from backbones import EfficientNet_pretrain
+from backbones import EfficientNet_pretrain, ResNet50
 from helper_functions import js_subset
 
 args = parser.parse_args()
@@ -423,6 +423,8 @@ def make(args):
     
     if args.backbone == "EfficientNet-b3":
         model = EfficientNet_pretrain(num_singles)
+    elif args.backbone == "ResNet50":
+        model = ResNet50(num_singles)
     else:
         print(f"### ERROR: The backbone {args.backbone} is invalid!")
     model = model.to(device)

@@ -20,7 +20,7 @@ from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16
-from backbones import EfficientNet_pretrain
+# from backbones import EfficientNet_pretrain, ResNet50
 from train import train_model
 from test import evaluate_vague_nonvague_ENN, evaluate_nonvague_HENN_final
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
