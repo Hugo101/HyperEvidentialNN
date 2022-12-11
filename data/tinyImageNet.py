@@ -87,7 +87,6 @@ class TinyImagenet():
             self.train_loader = DataLoader(aug_train_ds, batch_size=batch_size, shuffle=True,
                                                                 num_workers=8)
         
-       
         # self.indices = list(range(self.num_test + self.num_val))
         # random.Random(0).shuffle(self.indices)
         # self.test_idx = self.indices[:self.num_test]
@@ -136,7 +135,7 @@ def get_sample_idx_by_class(dataset, num_classes):
     '''
     sample_idx_by_class = [[] for i in range(num_classes)]
     for i in range(len(dataset)):
-        sample_idx_by_class[dataset[i][1]].append(i)
+        sample_idx_by_class[dataset[i][2]].append(i)
     return sample_idx_by_class
 
 
@@ -154,6 +153,7 @@ def train_valid_split(dataset, num_classes, valid_perc=0):
         valid_ds += Subset(dataset, valid_class_indices[k])
         train_ds += Subset(dataset, train_class_indices[k])
     return train_ds, valid_ds
+
 
 def make_vague_samples(dataset, num_single, num_single_comp, vague_classes_ids, guass_blur_sigma = 15):
     sample_indices = [i for i in range(len(dataset))]
@@ -270,12 +270,10 @@ class tinyImageNetVague():
 
         if duplicate:
             train_ds = self.modify_vague_samples(train_ds)
-        self.train_loader = DataLoader(train_ds, batch_size, shuffle=True, num_workers=1, pin_memory=True)
-        # train_dl = DeviceDataLoader(train_dl, device)
+        self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=1, pin_memory=True)
         self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
-        # valid_dl = DeviceDataLoader(valid_dl, device)
         self.test_loader = DataLoader(test_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
-        # test_dl = DeviceDataLoader(test_dl, device)
+
 
     def get_hierarchy(self, imagenet_hierarchy_path):
         #return hierarchy: size 1327*2 each row contains the information [superclass, subclass]
@@ -327,7 +325,10 @@ class tinyImageNetVague():
 
     def get_vague_classes_v2(self):
         # vague_classes = random.sample(self.candidate_superclasses, self.num_comp)
-        vague_classes = ["n03419014"] #todo: fixed this for now
+        if self.num_comp == 1:
+            vague_classes = ["n03419014"] #todo: fixed this for now
+        else:
+            vague_classes = random.sample(self.candidate_superclasses, self.num_comp)
         vague_subs_nids = [self.parent_to_subclasses[super_class] for super_class in vague_classes]
         vague_subs_ids = [[self.class_to_idx[sub] for sub in super] for super in vague_subs_nids]
         # C = [[classes_to_idx[sub_class] for sub_class in parent_to_subclass[super_class]] for super_class in vague_classes]
