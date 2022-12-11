@@ -19,10 +19,10 @@ parser.add_argument(
     "--saved_spec_dir", default="Debug", 
     type=str, help="specific experiment path."
     )
-parser.add_argument(
-    '--batch_size', default=64, 
-    type=int, help='The index of the gpu used'
-    )
+# parser.add_argument(
+#     '--batch_size', default=64, 
+#     type=int, help='The index of the gpu used'
+#     )
 parser.add_argument(
     '--gpu', default=9, 
     type=int, help='The index of the gpu used'
