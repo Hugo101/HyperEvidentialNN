@@ -243,7 +243,7 @@ def get_cutoff(
     device,
     detNN=True): #todo: could be better for efficiency
     cutoff = 0.0
-    end_cutoff = 1
+    end_cutoff = 0.5
     interval = 0.05
     accs = []
     cutoffs = []
