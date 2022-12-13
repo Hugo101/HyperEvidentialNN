@@ -1,0 +1,7 @@
+dataset: tinyimagenet
+backbone: EfficientNet-b3
+
+num_comp: 10
+batch_size: 64
+
+saved_spec_dir_DNN: cifar100_15M/DNN
