@@ -8,81 +8,34 @@ from collections import Counter
 import wandb
 
 
-def test_result_log(js_result, prec_recall_f, acc, acc_comp, acc_singl, epoch, bestModel=False):
+def test_result_log(
+    js_result, 
+    prec_recall_f, 
+    acc, 
+    js_comp, js_singl, 
+    nonVagueAcc_singl, 
+    epoch, bestModel=False):
     if bestModel:
-        wandb.log({
-            f"TestB JSoverall": js_result[0], 
-            f"TestB JScomp": js_result[1], 
-            f"TestB JSsngl": js_result[2],
-            f"TestB CmpPreci": prec_recall_f[0], 
-            f"TestB CmpRecal": prec_recall_f[1], 
-            f"TestB CmpFscor": prec_recall_f[2], 
-            f"TestB acc": acc,
-            f"TestB js_comp": acc_comp,
-            f"TestB js_singl": acc_singl}, step=epoch)
-        print(f"TestBest acc: {acc:.4f}, \n \
-            JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
-        return 
+        tag = "TestB"
     else:
         if epoch is None:
-            wandb.log({
-                f"TestF JSoverall": js_result[0], 
-                f"TestF JScomp": js_result[1], 
-                f"TestF JSsngl": js_result[2],
-                f"TestF CmpPreci": prec_recall_f[0], 
-                f"TestF CmpRecal": prec_recall_f[1], 
-                f"TestF CmpFscor": prec_recall_f[2], 
-                f"TestF acc": acc,
-                f"TestF js_comp": acc_comp,
-                f"TestF js_singl": acc_singl}, step=epoch)
-            print(f"TestF acc: {acc:.4f}, \n \
-                JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
+            tag = "TestF"
         else:
-            wandb.log({
-                f"Test JSoverall": js_result[0], 
-                f"Test JScomp": js_result[1], 
-                f"Test JSsngl": js_result[2],
-                f"Test CmpPreci": prec_recall_f[0], 
-                f"Test CmpRecal": prec_recall_f[1], 
-                f"Test CmpFscor": prec_recall_f[2], 
-                f"Test acc": acc,
-                f"Test js_comp": acc_comp,
-                f"Test js_singl": acc_singl}, step=epoch)
-            print(f"Test acc: {acc:.4f}, \n \
-                JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
-
-
-# @torch.no_grad()
-# def evaluate(
-#     model, val_loader, 
-#     num_single_classes, kappa, a_copy, 
-#     annealing_coefficient, 
-#     device
-#     ):
-#     model.eval()
-#     results = {
-#         'accuracy': 0.0,
-#         'mean_val_loss': 0.0
-#         }
-#     total_correct = 0.0
-#     total_samples = 0
-#     val_losses = []
-#     for batch in val_loader:
-#         images, _, labels = batch
-#         images, labels = images.to(device), labels.to(device)
-#         one_hot_labels = torch.nn.functional.one_hot(labels, num_classes=kappa)
-#         output = model(images)
-#         loss = lossFunc(output, one_hot_labels, a_copy, num_single_classes, annealing_coefficient)
-#         # batch_loss, _, _ = lossFunc(r, one_hot_labels, a_copy, annealing_coefficient)
-#         # loss = torch.mean(batch_loss)
-
-#         total_correct += numAccurate(output, labels)
-#         total_samples += len(labels)
-#         val_loss = loss.detach()
-#         val_losses.append(val_loss)
-#     results['mean_val_loss'] = torch.stack(val_losses).mean().item()
-#     results['accuracy'] = total_correct / total_samples
-#     return results
+            tag = "Test"
+    wandb.log({
+        f"{tag} JSoverall": js_result[0], 
+        f"{tag} JScomp": js_result[1], 
+        f"{tag} JSsngl": js_result[2],
+        f"{tag} CmpPreci": prec_recall_f[0], 
+        f"{tag} CmpRecal": prec_recall_f[1], 
+        f"{tag} CmpFscor": prec_recall_f[2], 
+        f"{tag} acc": acc,
+        f"{tag} js_comp": js_comp,
+        f"{tag} js_singl": js_singl,
+        f"{tag} nonVagueAcc_singl": nonVagueAcc_singl}, step=epoch)
+    print(f"{tag} acc: {acc:.4f}, \n \
+            JS(O_V_N): {js_result[0]:.4f}, {js_result[1]:.4f}, {js_result[2]:.4f} \n \
+            P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
 
 
 def acc_subset(idx, labels_true, labels_pred):
@@ -93,11 +46,15 @@ def acc_subset(idx, labels_true, labels_pred):
     return acc_subs
 
 
-
-
-
 @torch.no_grad()
-def evaluate_vague_nonvague_ENN(model, val_loader, R, num_singles, epoch, device, bestModel=False):
+def evaluate_vague_nonvague_ENN(
+    model, 
+    val_loader, 
+    R, 
+    num_singles, 
+    epoch, 
+    device, 
+    bestModel=False):
     model.eval()
     outputs_all = []
     labels_all = []
@@ -225,51 +182,51 @@ def precision_recall_f_v1(y_test, y_pred, num_singles):
 #     print(cnt_corr, cnt_wrong)
 
 
-def calculate_metrics(output, labels, R, K, W, a):
-    GTs = []
-    Predicteds = []
-    Predicteds_new = []
+# def calculate_metrics(output, labels, R, K, W, a):
+#     GTs = []
+#     Predicteds = []
+#     Predicteds_new = []
     
-    correct_vague = 0.0
-    correct_nonvague = 0.0
-    vague_total = 0
-    nonvague_total = 0
+#     correct_vague = 0.0
+#     correct_nonvague = 0.0
+#     vague_total = 0
+#     nonvague_total = 0
     
-    alpha = torch.add(output[:,:K], torch.mul(W, a))
+#     alpha = torch.add(output[:,:K], torch.mul(W, a))
 
-    # Get the predicted labels
-    p_exp = meanGDD(alpha, output)
-    predicted_labels = torch.argmax(p_exp, dim=1) # 
+#     # Get the predicted labels
+#     p_exp = meanGDD(alpha, output)
+#     predicted_labels = torch.argmax(p_exp, dim=1) # 
 
-    # Calculate vaguenesses
-    b = output / (torch.sum(output, dim=1) + W)[:, None]
-    total_vaguenesses = torch.sum(b[:, K:], dim=1)
-    b_v = vague_belief_mass(b)
+#     # Calculate vaguenesses
+#     b = output / (torch.sum(output, dim=1) + W)[:, None]
+#     total_vaguenesses = torch.sum(b[:, K:], dim=1)
+#     b_v = vague_belief_mass(b)
 
-    for i in range(len(labels)):
-        k = labels[i].item()
-        predicted_set = set(R[torch.argmax(output[i])])
-        Predicteds.append(predicted_set)
+#     for i in range(len(labels)):
+#         k = labels[i].item()
+#         predicted_set = set(R[torch.argmax(output[i])])
+#         Predicteds.append(predicted_set)
         
-        if len(predicted_set) == 1:
-            predicted_set = set(R[predicted_labels[i].item()])
+#         if len(predicted_set) == 1:
+#             predicted_set = set(R[predicted_labels[i].item()])
         
-        Predicteds_new.append(predicted_set)
+#         Predicteds_new.append(predicted_set)
 
-        ground_truth_set = set(R[k])
-        GTs.append(ground_truth_set)
+#         ground_truth_set = set(R[k])
+#         GTs.append(ground_truth_set)
         
-        intersect = predicted_set.intersection(ground_truth_set)
-        union = predicted_set.union(ground_truth_set)
-        if len(predicted_set) == 1:
-            correct_nonvague += float(len(intersect)) / len(union)
-            nonvague_total += 1
-        else:
-            correct_vague += float(len(intersect)) / len(union)
-            vague_total += 1
-    stat_result = [correct_nonvague, correct_vague, nonvague_total, vague_total] #todo check this with calculate_metric
-    GT_Pred_res = [GTs, Predicteds, Predicteds_new]
-    return stat_result, GT_Pred_res
+#         intersect = predicted_set.intersection(ground_truth_set)
+#         union = predicted_set.union(ground_truth_set)
+#         if len(predicted_set) == 1:
+#             correct_nonvague += float(len(intersect)) / len(union)
+#             nonvague_total += 1
+#         else:
+#             correct_vague += float(len(intersect)) / len(union)
+#             vague_total += 1
+#     stat_result = [correct_nonvague, correct_vague, nonvague_total, vague_total] #todo check this with calculate_metric
+#     GT_Pred_res = [GTs, Predicteds, Predicteds_new]
+#     return stat_result, GT_Pred_res
 
 
 def calculate_metrics_ENN(output, labels, R):
