@@ -69,7 +69,7 @@ def make(args):
         print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
         num_classes_both = num_singles + num_comps
         if args.backbone == "EfficientNet-b3":
-            model = HENN_EfficientNet(num_classes_both)
+            model = HENN_EfficientNet(num_classes_both, pretrain=args.pretrain)
         elif args.backbone == "ResNet50":
             model = HENN_ResNet50(num_classes_both)
         elif args.backbone == "VGG16":
@@ -88,7 +88,7 @@ def make(args):
         print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
         num_classes_both = num_singles + num_comps
         if args.backbone == "EfficientNet-b3":
-            model = HENN_EfficientNet(num_classes_both)
+            model = HENN_EfficientNet(num_classes_both, pretrain=args.pretrain)
         elif args.backbone == "ResNet50":
             model = HENN_ResNet50(num_classes_both)
         elif args.backbone == "VGG16":

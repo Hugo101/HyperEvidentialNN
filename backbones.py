@@ -18,11 +18,14 @@ class HENN_EfficientNet(nn.Module):
 
 
 class EfficientNet_pretrain(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, pretrain=True):
         super().__init__()
-
-        # EfficientNet
-        self.network = EfficientNet.from_pretrained("efficientnet-b3", num_classes=num_classes)
+        self.pretrain = pretrain
+        self.model_name = "efficientnet-b3"
+        if self.pretrain:
+            self.network = EfficientNet.from_pretrained(self.model_name, num_classes=num_classes)
+        else:
+            self.network = EfficientNet.from_name(self.model_name, num_classes=num_classes)
 
     def forward(self, x):
         logits = self.network(x)
