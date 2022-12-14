@@ -1,0 +1,35 @@
+dataset: tinyimagenet
+backbone: EfficientNet-b3
+
+num_comp: 15
+#experiment type
+exp_type: 4
+
+train: True
+test: True
+
+nonVaguePred: True
+vaguePred: True
+
+batch_size: 64
+epochs: 60
+init_lr: 0.0001
+milestone1: 10
+milestone2: 30
+
+use_uncertainty: True 
+
+# loss functions
+mse: False 
+digamma: True 
+log: False 
+
+kl_reg: False  #KL in the ENN 
+kl_lam: 0.0
+
+kl_reg_pretrain: False  #KL in experiment 3
+kl_lam_pretrain: 0.0
+forward_kl_pretrain: True 
+
+entropy_reg: True
+entropy_lam: 1
