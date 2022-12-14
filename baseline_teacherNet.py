@@ -6,9 +6,6 @@ import yaml
 import wandb
 import torch
 from torch import optim, nn
-import torch.nn.functional as F
-from sklearn.metrics import precision_score, recall_score, f1_score
-from collections import Counter
 
 from config_args import parser
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
