@@ -264,6 +264,7 @@ class tinyImageNetVague():
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406], 
                 std =[0.229, 0.224, 0.225])])
+
         train_ds = CustomDataset(train_ds, transform=pre_norm)
         valid_ds = CustomDataset(valid_ds, transform=pre_norm)
         test_ds = CustomDataset(test_ds, transform=pre_norm)

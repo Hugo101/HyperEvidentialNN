@@ -78,6 +78,7 @@ def set_random_seeds(seed=1):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
+
 class Dict(dict):
     __setattr__ = dict.__setitem__
     __getattr__ = dict.__getitem__
