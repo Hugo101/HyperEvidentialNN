@@ -16,7 +16,7 @@ from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from backbones import EfficientNet_pretrain, ResNet50
-from helper_functions import js_subset
+from helper_functions import js_subset, acc_subset
 
 args = parser.parse_args()
 opt = vars(args)
@@ -168,30 +168,30 @@ def train_DetNN(
     return model, model_best, best_epoch
 
 
-@torch.no_grad()
-def evaluate_nonvague_final(
-    model,
-    test_loader,
-    device
-    ):
-    model.eval()
-    total_correct = 0.0
-    total_samples = 0
-    # losses = []
-    for batch in test_loader:
-        images, single_labels_GT, labels = batch
-        images, labels = images.to(device), labels.to(device)
-        single_labels_GT = single_labels_GT.to(device)
-        output = model(images)
-        # loss = criterion(output, labels)
-        _, preds = torch.max(output, 1)
-        total_correct += torch.sum(preds == single_labels_GT.data) # nonvague prediction
-        total_samples += len(labels)
-        # val_loss = loss.detach()
-        # val_losses.append(val_loss)
-    # loss = torch.stack(val_losses).mean().item()
-    acc = total_correct / total_samples
-    return acc
+# @torch.no_grad()
+# def evaluate_nonvague_final(
+#     model,
+#     test_loader,
+#     device
+#     ):
+#     model.eval()
+#     total_correct = 0.0
+#     total_samples = 0
+#     # losses = []
+#     for batch in test_loader:
+#         images, single_labels_GT, labels = batch
+#         images, labels = images.to(device), labels.to(device)
+#         single_labels_GT = single_labels_GT.to(device)
+#         output = model(images)
+#         # loss = criterion(output, labels)
+#         _, preds = torch.max(output, 1)
+#         total_correct += torch.sum(preds == single_labels_GT.data) # nonvague prediction
+#         total_samples += len(labels)
+#         # val_loss = loss.detach()
+#         # val_losses.append(val_loss)
+#     # loss = torch.stack(val_losses).mean().item()
+#     acc = total_correct / total_samples
+#     return acc
 
 
 def num_accurate_baseline(output, labels, R, cutoff, detNN=True):
@@ -319,43 +319,59 @@ def precision_recall_f_v1(y_test, y_pred, num_singles):
 
 
 @torch.no_grad()
-def evaluate_vague_final(
+def evaluate_vague_nonvague_final(
     model,
     test_loader,
     val_loader,
     R,
     num_singles,
     device,
-    detNN=True):
+    detNN=True,
+    bestModel=False):
     cutoff = get_cutoff(model, val_loader, R, device, detNN=detNN)
     print(f"### selected cutoff: {cutoff}")
+    
+    # begin evaluation
     model.eval()
     outputs_all = []
     labels_all = []
+    true_labels_all = []
     preds_all = []
+    total_correct = 0.0
+    total_samples = 0
     for batch in test_loader:
-        images, _, labels = batch
+        images, single_labels_GT, labels = batch
         images, labels = images.to(device), labels.to(device)
+        single_labels_GT = single_labels_GT.to(device)
         output = model(images)
         preds = output.argmax(dim=1)
-
+        total_correct += torch.sum(preds == single_labels_GT.data) # nonvague
+        total_samples += len(labels)
+        
         outputs_all.append(output)
         labels_all.append(labels)
         preds_all.append(preds)
+        true_labels_all.append(single_labels_GT)
 
+    # nonvague prediction accuracy
+    nonvague_acc = total_correct / total_samples  
+    
     outputs_all = torch.cat(outputs_all, dim=0)
     labels_all = torch.cat(labels_all, dim=0)
     preds_all = torch.cat(preds_all, dim=0)
+    true_labels_all = torch.cat(true_labels_all, dim=0)
     
     # JS of composite examples
     comp_idx = labels_all > num_singles-1
     # acc_comp = acc_subset(comp_idx, labels_all, preds_all)
     js_comp = js_subset(comp_idx, labels_all, preds_all, R)
-    
     # JS of singleton examples
     singl_idx = labels_all < num_singles
     # acc_singl = acc_subset(singl_idx, labels_all, preds_all)
     js_singl = js_subset(singl_idx, labels_all, preds_all, R)
+    
+    #nonvagueAcc for original singleton examples
+    nonvague_acc_singl = acc_subset(singl_idx, true_labels_all, preds_all)
     
     stat_result, prec_recall_f = calculate_metrics(outputs_all, labels_all, R, cutoff, detNN=detNN)
 
@@ -364,36 +380,34 @@ def evaluate_vague_final(
     overall_js = (stat_result[0] + stat_result[1])/(stat_result[2] + stat_result[3]+1e-10)
     js_result = [overall_js, avg_js_vague, avg_js_nonvague]
 
-    return js_result, prec_recall_f, js_comp, js_singl
+    test_result_log(
+        js_result, prec_recall_f, js_comp, js_singl, 
+        nonvague_acc, nonvague_acc_singl, 
+        bestModel=bestModel)
 
 
-def test_result_log(js_result, prec_recall_f, acc, js_comp, js_singl, bestModel=False):
+def test_result_log(
+    js_result, prec_recall_f, js_comp, js_singl, 
+    nonvague_acc, nonvague_acc_singl, 
+    bestModel=False):
     if bestModel:
-        wandb.log({
-            f"TestB JSoverall": js_result[0], 
-            f"TestB JScomp": js_result[1], 
-            f"TestB JSsngl": js_result[2],
-            f"TestB CmpPreci": prec_recall_f[0], 
-            f"TestB CmpRecal": prec_recall_f[1], 
-            f"TestB CmpFscor": prec_recall_f[2], 
-            f"TestB accNonVague": acc,
-            f"TestB js_comp": js_comp,
-            f"TestB js_singl": js_singl})
-        print(f"TestBest accNonVague: {acc:.4f}, \n \
-            JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
+        tag = "TestB"
     else:
-        wandb.log({
-            f"TestF JSoverall": js_result[0], 
-            f"TestF JScomp": js_result[1], 
-            f"TestF JSsngl": js_result[2],
-            f"TestF CmpPreci": prec_recall_f[0], 
-            f"TestF CmpRecal": prec_recall_f[1], 
-            f"TestF CmpFscor": prec_recall_f[2], 
-            f"TestF accNonVague": acc,
-            f"TestF js_comp": js_comp,
-            f"TestF js_singl": js_singl})
-        print(f"TestF accNonVague: {acc:.4f}, \n \
-            JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
+        tag = "TestF"
+    wandb.log({
+        f"{tag} JSoverall": js_result[0], 
+        f"{tag} JScomp": js_result[1], 
+        f"{tag} JSsngl": js_result[2],
+        f"{tag} CmpPreci": prec_recall_f[0], 
+        f"{tag} CmpRecal": prec_recall_f[1], 
+        f"{tag} CmpFscor": prec_recall_f[2], 
+        f"{tag} js_comp": js_comp,
+        f"{tag} js_singl": js_singl,
+        f"{tag} accNonVague": nonvague_acc,
+        f"{tag} accNonVagueSingl": nonvague_acc_singl})
+    print(f"{tag} accNonVague: {nonvague_acc:.4f},\n\
+        accNonVagueSingl: {nonvague_acc_singl:.4f},\n \
+        JS(O_V_N): {js_result}, P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
 
 
 def make(args):
@@ -478,18 +492,16 @@ def main():
         model_best_from_valid.load_state_dict(checkpoint["model_state_dict_best"]) 
 
         # model after the final epoch
-        if args.vaguePred:
-            js_result, prec_recall_f, js_comp, js_singl = evaluate_vague_final(model, test_loader, valid_loader, R, num_singles, device)
-        if args.nonVaguePred:
-            acc_nonvague = evaluate_nonvague_final(model, test_loader, device)
-        test_result_log(js_result, prec_recall_f, acc_nonvague, js_comp, js_singl, False) # bestModel=False
+        # bestModel=False
+        print(f"\n### Evaluate the model after all epochs:")
+        evaluate_vague_nonvague_final(
+            model, test_loader, valid_loader, R, num_singles, device, 
+            detNN=True, bestModel=False)
 
-        print(f"### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
-        if args.vaguePred:
-            js_result, prec_recall_f, js_comp, js_singl = evaluate_vague_final(model_best_from_valid, test_loader, valid_loader, R, num_singles, device)
-        if args.nonVaguePred:
-            acc_nonvague = evaluate_nonvague_final(model_best_from_valid, test_loader, device)
-        test_result_log(js_result, prec_recall_f, acc_nonvague, js_comp, js_singl, True)
+        print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
+        evaluate_vague_nonvague_final(
+            model_best_from_valid, test_loader, valid_loader, R, num_singles, device, 
+            detNN=True, bestModel=True)
 
 
 if __name__ == "__main__":

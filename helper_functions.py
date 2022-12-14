@@ -96,7 +96,7 @@ def projection_prob(num_singles, num_comp, R, r):
     #numerator: num_singles*num_samples, num_singles*1
     #denominator: 
     prob_exp = (term1 + W*ax.T)/(W+torch.sum(r, dim=1))
-    
+
     return prob_exp.T
 
 
@@ -147,6 +147,14 @@ def js_subset(idx, labels_true, labels_pred, R):
 
     acc = num_corr / length
     return acc
+
+
+def acc_subset(idx, labels_true, labels_pred):
+    labels_true_subs = labels_true[idx]
+    labels_pred_subs = labels_pred[idx]
+    length = len(labels_true_subs)
+    num_corr = torch.sum(labels_true_subs.cpu()==labels_pred_subs.cpu())
+    return num_corr / length
 
 
 def numAccurate(r, labels, num_single, W, R, a):

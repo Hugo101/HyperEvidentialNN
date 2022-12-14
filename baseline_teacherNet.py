@@ -11,7 +11,10 @@ from config_args import parser
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
-from backbones import EfficientNet_pretrain
+from backbones import EfficientNet_pretrain, ResNet50
+from helper_functions import js_subset, acc_subset
+from test import calculate_metrics_ENN, precision_recall_f_v1
+
 
 args = parser.parse_args()
 opt = vars(args)
@@ -42,18 +45,17 @@ def train_log(phase, epoch, acc, loss):
         f"{phase} acc": acc}, step=epoch)
     print(f"{phase.capitalize()} loss: {loss:.4f} acc: {acc:.4f}")
 
-def test_log(phase, epoch, acc, acc_comps, loss):
-    wandb.log({
-        f"{phase} epoch": epoch, 
-        f"{phase} loss": loss, 
-        f"{phase} acc": acc, 
-        f"{phase} acc_comps": acc_comps}, step=epoch)
-    print(f"{phase.capitalize()} loss: {loss:.4f}, acc: {acc:.4f}, acc_comps: {acc_comps:.4f}")
-    
-def train_pretrain(
+# def test_log(phase, epoch, acc, acc_comps, loss):
+#     wandb.log({
+#         f"{phase} epoch": epoch, 
+#         f"{phase} loss": loss, 
+#         f"{phase} acc": acc, 
+#         f"{phase} acc_comps": acc_comps}, step=epoch)
+#     print(f"{phase.capitalize()} loss: {loss:.4f}, acc: {acc:.4f}, acc_comps: {acc_comps:.4f}")
+
+def train_teacher(
     model,
     mydata,
-    num_singles,
     criterion,
     optimizer,
     scheduler=None,
@@ -66,7 +68,7 @@ def train_pretrain(
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
     best_epoch = 0
-
+    num_singles = mydata.num_classes
     for epoch in range(num_epochs):
         print("Epoch {}/{}".format(epoch, num_epochs - 1))
         print("-" * 10)
@@ -75,7 +77,7 @@ def train_pretrain(
         for phase in ["train", "val"]:
             if phase == "train":
                 print("Training...")
-                print(f" get last lr:{scheduler.get_last_lr()}") if not scheduler else ""
+                print(f" get last lr:{scheduler.get_last_lr()}") if scheduler else ""
                 model.train()  # Set model to training mode
                 dataloader = mydata.train_loader 
             else:
@@ -90,6 +92,7 @@ def train_pretrain(
             for batch_idx, (inputs, label_singl, labels) in enumerate(dataloader):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
+                
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 # forward
@@ -129,20 +132,22 @@ def train_pretrain(
                 best_model_wts = copy.deepcopy(model.state_dict()) # deep copy the model
             if phase == "val":
                 if epoch == 0 or ((epoch+1) % 1 ==0):
-                    acc, acc_comps, loss_t, state = evaluate_pretrain(model, mydata.test_loader, num_singles, criterion, device)
-                    torch.save(state, f'{base_path}/tiny_{epoch}_{acc:.4f}.pt')
-                    test_log("Test", epoch, acc, acc_comps, loss_t)
+                    acc = evaluate_teacher(model, mydata.test_loader, num_singles, mydata.R, criterion, epoch)
+                    state = {
+                        "model_state_dict": model.state_dict(),
+                    }
+                    torch.save(state, f'{base_path}/teacher_{epoch}_{acc:.4f}.pt')
 
         time_epoch = time.time() - begin_epoch
         print(f"Finish the EPOCH in {time_epoch//60:.0f}m {time_epoch%60:.0f}s.")
 
     time_elapsed = time.time() - since
     print(f"TRAINing complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s.")
-    
-    print(f"Best val epoch: {best_epoch}, Acc: {best_acc:4f}")
+
     final_model_wts = copy.deepcopy(model.state_dict()) # view the model in the last epoch is the best 
     model.load_state_dict(final_model_wts)
-
+    
+    print(f"Best val epoch: {best_epoch}, Acc: {best_acc:4f}")
     model_best = copy.deepcopy(model)
     # load best model weights
     model_best.load_state_dict(best_model_wts)
@@ -151,48 +156,100 @@ def train_pretrain(
 
 
 @torch.no_grad()
-def evaluate_pretrain(
+def evaluate_teacher(
     model, 
     val_loader,
     num_singles,
+    R,
     criterion,
-    device,
+    epoch,
+    bestModel=False,
     ):
     model.eval()
     total_correct = 0.0
     total_samples = 0
     val_losses = []
-    labels_true_all = []
+    labels_all = []
     labels_pred_all = []
+    outputs_all = []
     for batch in val_loader:
         images, labels_singl, labels = batch
         images, labels = images.to(device), labels.to(device)
         output = model(images)
         loss = criterion(output, labels)
         _, preds = torch.max(output, 1)
-        total_correct += torch.sum(preds == labels.data)
-        total_samples += len(labels)
+        # total_correct += torch.sum(preds == labels.data)
+        # total_samples += len(labels)
         val_loss = loss.detach()
+        
         val_losses.append(val_loss)
-        labels_true_all.append(labels)
+        labels_all.append(labels)
         labels_pred_all.append(preds)
-    labels_true_all = torch.cat(labels_true_all, dim=0).cpu()
+        outputs_all.append(output)
+
+    outputs_all = torch.cat(outputs_all, dim=0)
+    labels_all = torch.cat(labels_all, dim=0).cpu()
     labels_pred_all = torch.cat(labels_pred_all, dim=0).cpu()
-    total_correct_2 = torch.sum(labels_true_all == labels_pred_all).item()
-    assert total_correct_2 == total_correct
-    assert total_samples == len(labels_true_all)
-    comp_idx = labels_true_all > num_singles-1
-    labels_true_comps = labels_true_all[comp_idx]
-    labels_pred_comps = labels_pred_all[comp_idx]
-    corr_comps = torch.sum(labels_true_comps == labels_pred_comps).item()
-    acc_comps = corr_comps / len(labels_true_comps)
-    
+    total_correct_2 = torch.sum(labels_all == labels_pred_all).item()
+    acc = total_correct_2 / len(labels_all)
     loss = torch.stack(val_losses).mean().item()
-    acc = total_correct / total_samples
-    state = {
-        "model_state_dict": model.state_dict(),
-    }
-    return acc, acc_comps, loss, state
+
+    # calculate the accuracy among singleton examples
+    # acc of composite examples
+    comp_idx = labels_all > num_singles-1
+    # acc_comp = acc_subset(comp_idx, labels_all, preds_all)
+    js_comp = js_subset(comp_idx, labels_all, labels_pred_all, R)
+    # acc of singleton examples
+    singl_idx = labels_all < num_singles
+    acc_singl = acc_subset(singl_idx, labels_all, labels_pred_all)
+    js_singl = js_subset(singl_idx, labels_all, labels_pred_all, R)
+
+    stat_result, GT_Pred_res = calculate_metrics_ENN(outputs_all, labels_all, R)
+    avg_js_nonvague = stat_result[0] / (stat_result[2]+1e-10)
+    avg_js_vague = stat_result[1] / (stat_result[3]+1e-10)
+    overall_js = (stat_result[0] + stat_result[1])/(stat_result[2] + stat_result[3]+1e-10)
+    js_result = [overall_js, avg_js_vague, avg_js_nonvague]
+
+    # check precision, recall, f-score for composite classes
+    prec_recall_f = precision_recall_f_v1(labels_all, labels_pred_all, num_singles) 
+    test_vague_result_log_teacher(
+        js_result, 
+        prec_recall_f, 
+        acc, loss, 
+        js_comp, js_singl, acc_singl, 
+        epoch, bestModel=bestModel)
+
+    return acc
+
+
+def test_vague_result_log_teacher(
+    js_result,
+    prec_recall_f,
+    acc, loss,
+    js_comp, js_singl, acc_singl,
+    epoch, bestModel=False):
+    if bestModel:
+        tag = "TestB"
+    else:
+        if epoch is None:
+            tag = "TestF"
+        else:
+            tag = "Test"
+    wandb.log({
+        f"{tag} JSoverall": js_result[0], 
+        f"{tag} JScomp": js_result[1], 
+        f"{tag} JSsngl": js_result[2],
+        f"{tag} CmpPreci": prec_recall_f[0], 
+        f"{tag} CmpRecal": prec_recall_f[1], 
+        f"{tag} CmpFscor": prec_recall_f[2], 
+        f"{tag} acc": acc,
+        f"{tag} loss": loss,
+        f"{tag} js_comp": js_comp,
+        f"{tag} js_singl": js_singl,
+        f"{tag} acc_singl": acc_singl}, step=epoch)
+    print(f"{tag} acc: {acc:.4f},\n\
+        JS(O_V_N): {js_result[0]:.4f}, {js_result[1]:.4f}, {js_result[2]:.4f},\n\
+        P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
 
 
 def make(args):
@@ -200,7 +257,9 @@ def make(args):
     num_singles = 0
     num_comps = 0
     num_classes_both = 0 
-
+    milestone1 = args.milestone1
+    milestone2 = args.milestone2
+    
     if args.dataset == "tinyimagenet":
         mydata = tinyImageNetVague(
             args.data_dir, 
@@ -223,28 +282,29 @@ def make(args):
     num_classes_both = num_singles + num_comps
     if args.backbone == "EfficientNet-b3":
         model = EfficientNet_pretrain(num_classes_both)
+    elif args.backbone == "ResNet50":
+        model = ResNet50(num_classes_both)
     else:
         print(f"### ERROR: The backbone {args.backbone} is invalid!")
     model = model.to(device)
     print("### Loss type: CrossEntropy (no uncertainty)")
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.init_lr)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100], gamma=0.1)
-    return mydata, model, num_singles, criterion, optimizer, scheduler
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[milestone1, milestone2], gamma=0.1)
+    return mydata, model, criterion, optimizer, scheduler
 
 
 def main():
     print('Random Seed: {}'.format(args.seed))
     set_random_seeds(args.seed)
 
-    mydata, model, num_singles, criterion, optimizer, scheduler = make(args)
-
+    mydata, model, criterion, optimizer, scheduler = make(args)
+    num_singles = mydata.num_classes
     if args.train:
         start = time.time()
-        model, model_best, epoch_best = train_pretrain(
+        model, model_best, epoch_best = train_teacher(
                                             model,
                                             mydata,
-                                            num_singles,
                                             criterion,
                                             optimizer,
                                             scheduler=scheduler,
@@ -274,19 +334,16 @@ def main():
         model_best_from_valid.load_state_dict(checkpoint["model_state_dict_best"]) 
 
         # model after the final epoch
-        acc, acc_comps, loss_t, state = evaluate_pretrain(model, test_loader, num_singles, criterion, device)
-        test_log("TestF", None, acc, acc_comps, loss_t)
-        print(f"model after final epoch: acc:{acc:.4f}, acc_comps:{acc_comps:.4f}")
+        print(f"\n### Evaluate the model after all epochs:")
+        evaluate_teacher(model, test_loader, num_singles, mydata.R, criterion, None, bestModel=False)
 
-        print(f"### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
-        acc, acc_comps, loss_t, state = evaluate_pretrain(model, test_loader, num_singles, criterion, device)
-        test_log("TestB", None, acc, acc_comps, loss_t)
-        print(f"model from validation: acc:{acc:.4f}, acc_comps:{acc_comps:.4f}")
+        print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
+        evaluate_teacher(model_best_from_valid, test_loader, num_singles, mydata.R, criterion, None, bestModel=True)
 
 
 if __name__ == "__main__":
     # tell wandb to get started
     print(config)
-    with wandb.init(project=f"{config['dataset']}-{config['num_comp']}M-Pretrained", config=config):
+    with wandb.init(project=f"{config['dataset']}-{config['num_comp']}M-Teacher", config=config):
         config = wandb.config
         main()

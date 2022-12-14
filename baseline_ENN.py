@@ -6,10 +6,6 @@ import yaml
 import wandb
 import torch
 from torch import optim, nn
-import torch.nn.functional as F
-from sklearn import metrics
-from sklearn.metrics import precision_score, recall_score, f1_score
-from collections import Counter
 
 from config_args import parser
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
@@ -19,10 +15,8 @@ from backbones import HENN_EfficientNet, EfficientNet_pretrain
 from backbones import HENN_ResNet50, ResNet50
 from helper_functions import one_hot_embedding
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
-from baseline_DetNN import evaluate_nonvague_final
-from baseline_DetNN import evaluate_vague_final
-from baseline_DetNN import test_result_log
-from helper_functions import js_subset
+from baseline_DetNN import evaluate_vague_nonvague_final
+
 
 args = parser.parse_args()
 opt = vars(args)
@@ -282,9 +276,7 @@ def main():
         }
         
         saved_path = os.path.join(base_path, "model_uncertainty_mse.pt")
-        
-        # saved_path = os.path.join(base_path, "model_CrossEntropy.pt")
-        
+
         torch.save(state, saved_path)
         print(f"Saved: {saved_path}")
         end = time.time()
@@ -315,22 +307,15 @@ def main():
         model_best_from_valid.load_state_dict(checkpoint["model_state_dict_best"]) 
 
         # model after the final epoch
-        if args.vaguePred:
-            js_result, prec_recall_f, js_comp, js_singl = evaluate_vague_final(
+        print(f"\n### Evaluate the model after all epochs:")
+        evaluate_vague_nonvague_final(
                 model, test_loader, valid_loader, R, num_singles, device, 
-                detNN=False)
-        if args.nonVaguePred:
-            acc_nonvague = evaluate_nonvague_final(model, test_loader, device)
-        test_result_log(js_result, prec_recall_f, acc_nonvague, js_comp, js_singl, False) # bestModel=False
+                detNN=False, bestModel=False)
 
-        print(f"### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
-        if args.vaguePred:
-            js_result, prec_recall_f, js_comp, js_singl = evaluate_vague_final(
+        print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
+        evaluate_vague_nonvague_final(
                 model_best_from_valid, test_loader, valid_loader, R, num_singles,device,
-                detNN=False)
-        if args.nonVaguePred:
-            acc_nonvague = evaluate_nonvague_final(model_best_from_valid, test_loader, device)
-        test_result_log(js_result, prec_recall_f, acc_nonvague, js_comp, js_singl, True)
+                detNN=False, bestModel=True)
 
 
 if __name__ == "__main__":

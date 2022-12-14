@@ -101,7 +101,7 @@ def train_model(
     
     if exp_type == 3:
         pretrainedModel = EfficientNet_pretrain(num_classes)
-        checkpoint = torch.load(saved_path_pretrain, map_location='cuda:2')
+        checkpoint = torch.load(saved_path_pretrain, map_location=device)
         pretrainedModel.load_state_dict(checkpoint["model_state_dict"])
         pretrainedModel.eval()
         pretrainedModel = pretrainedModel.to(device)
@@ -109,9 +109,6 @@ def train_model(
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
     best_epoch = 0
-
-    # losses = {"train": [], "valid": []}
-    # accuracy = {"train": [], "valid": []}
 
     for epoch in range(num_epochs):
         print("Epoch {}/{}".format(epoch, num_epochs - 1))
@@ -121,7 +118,7 @@ def train_model(
         for phase in ["train", "val"]:
             if phase == "train":
                 print("Training...")
-                print(f" get last lr:{scheduler.get_last_lr()}") if not scheduler else ""
+                print(f" get last lr:{scheduler.get_last_lr()}") if scheduler else ""
                 model.train()  # Set model to training mode
                 dataloader = mydata.train_loader 
             else:
@@ -237,28 +234,28 @@ def train_model(
             if phase == "val":
                 if epoch == 0 or ((epoch+1) % 1 ==0):
                     acc = evaluate_vague_nonvague_ENN(
-                        model, mydata.test_loader, mydata.R, mydata.num_classes, epoch, device)
+                        model, mydata.test_loader, mydata.R, 
+                        mydata.num_classes, mydata.num_comps, 
+                        mydata.vague_classes_ids, 
+                        epoch, device)
                     state = {
                         "model_state_dict": model.state_dict(),
                     }
-                    torch.save(state, f'{logdir}/tiny_{epoch}_{acc:.4f}.pt')
+                    torch.save(state, f'{logdir}/HENN_{epoch}_{acc:.4f}.pt')
 
         time_epoch = time.time() - begin_epoch
         print(f"Finish the EPOCH in {time_epoch//60:.0f}m {time_epoch%60:.0f}s.")
 
     time_elapsed = time.time() - since
     print(f"TRAINing complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s.")
-    print(f"Best val epoch: {best_epoch}, Acc: {best_acc:4f}")
+    
     final_model_wts = copy.deepcopy(model.state_dict()) # view the model in the last epoch is the best 
     model.load_state_dict(final_model_wts)
 
+    print(f"Best val epoch: {best_epoch}, Acc: {best_acc:4f}")
     model_best = copy.deepcopy(model)
     # load best model weights
     model_best.load_state_dict(best_model_wts)
-
-    # metrics = {
-    #     "losses"  : losses,
-    #     "accuracy": accuracy}
 
     return model, model_best, best_epoch
 

@@ -25,6 +25,7 @@ from train import train_model
 from test import evaluate_vague_nonvague_ENN, evaluate_nonvague_HENN_final
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 
+
 args = parser.parse_args()
 # process argparse & yaml
 # if  args.config:
@@ -38,14 +39,14 @@ create_path(base_path)
 config_file = os.path.join(base_path, "config.yml")
 config = yaml.load(open(config_file), Loader=yaml.FullLoader)
 opt.update(config)
-args = opt
+
 # else:  # yaml priority is higher than args
 #     opt = yaml.load(open(args.config), Loader=yaml.FullLoader)
 #     opt.update(vars(args))
 #     args = argparse.Namespace(**opt)
 
 # convert args from Dict to Object
-args = dictToObj(args)
+args = dictToObj(opt)
 device = set_device(args.gpu)
 
 def make(args):
@@ -199,20 +200,17 @@ def main():
         model_best_from_valid.load_state_dict(checkpoint["model_state_dict_best"]) 
 
         # #Evaluation, Inference
-        if args.vaguePred:
-            evaluate_vague_nonvague_ENN(model, mydata.test_loader, mydata.R, mydata.num_classes, None, device)
-        if args.nonVaguePred:
-            acc_nonvague1, acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device, mydata.num_comp, mydata.vague_classes_ids, mydata.R)
-        print(f"### The acc of nonvague (singleton) after final epoch: {acc_nonvague1:.4f}, {acc_nonvague:.4f}.\n")
+        print(f"\n### Evaluate the model after all epochs:")
+        evaluate_vague_nonvague_ENN(
+            model, mydata.test_loader, mydata.R, 
+            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
+            None, device)
 
-        print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
-        if args.vaguePred:
-            evaluate_vague_nonvague_ENN(model_best_from_valid, mydata.test_loader, mydata.R, mydata.num_classes, None, device, bestModel=True)
-        if args.nonVaguePred:
-            acc_nonvague1, acc_nonvague = evaluate_nonvague_HENN_final(model, mydata.test_loader, mydata.num_classes, device, mydata.num_comp, mydata.vague_classes_ids, mydata.R)
-            print(f"### The acc of nonvague (singleton): {acc_nonvague1:.4f}, {acc_nonvague:.4f}.\n")
-
-        # draw_roc(model, test_dl)
+        print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
+        evaluate_vague_nonvague_ENN(
+            model_best_from_valid, mydata.test_loader, mydata.R, 
+            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
+            None, device, bestModel=True)
 
     # W = mydata.num_classes 
     # a = torch.div(torch.ones(mydata.num_classes), mydata.num_classes).to(device)
