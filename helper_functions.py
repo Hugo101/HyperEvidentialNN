@@ -30,7 +30,7 @@ class CustomDataset(Dataset):
         x, y_truth_single, y = self.dataset[index]
         if self.transform:
             x = self.transform(x)
-        if self.class_num is not None:
+        if self.class_num:
             return x, y_truth_single, self.class_num
         else:
             return x, y_truth_single, y

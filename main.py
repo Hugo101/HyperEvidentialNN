@@ -63,7 +63,8 @@ def make(args):
             args.data_dir, 
             num_comp=args.num_comp, 
             batch_size=args.batch_size,
-            imagenet_hierarchy_path=args.data_dir)
+            imagenet_hierarchy_path=args.data_dir,
+            blur=args.blur)
         num_singles = mydata.num_classes
         num_comps = mydata.num_comp
         print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
@@ -81,7 +82,8 @@ def make(args):
         mydata = CIFAR100Vague(
             args.data_dir, 
             num_comp=args.num_comp, 
-            batch_size=args.batch_size
+            batch_size=args.batch_size,
+            blur=args.blur
             )
         num_singles = mydata.num_classes
         num_comps = mydata.num_comp

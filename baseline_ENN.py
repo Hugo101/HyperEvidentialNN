@@ -199,14 +199,16 @@ def make(args):
             num_comp=args.num_comp, 
             batch_size=args.batch_size,
             imagenet_hierarchy_path=args.data_dir,
-            duplicate=True) #key duplicate 
+            duplicate=True,
+            blur=args.blur) #key duplicate 
 
     elif args.dataset == "cifar100":
         mydata = CIFAR100Vague(
             args.data_dir, 
             num_comp=args.num_comp,
             batch_size=args.batch_size,
-            duplicate=True) #key duplicate
+            duplicate=True,
+            blur=args.blur) #key duplicate
 
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
