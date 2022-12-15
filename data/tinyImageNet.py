@@ -185,12 +185,14 @@ class tinyImageNetVague():
         imagenet_hierarchy_path="./",
         duplicate=False,
         blur=True,
+        pretrain=True, #if using pretrained model, resize img to 224
         ):
         self.name = "tinyimagenet"
         print('Loading TinyImageNet...')
         self.blur = blur
         self.duplicate = duplicate
         self.batch_size = batch_size
+        self.pretrain = pretrain
         self.img_size = 64
         self.num_classes = 200 #K  
         self.num_comp = num_comp
@@ -207,13 +209,19 @@ class tinyImageNetVague():
         for subclass in os.listdir(train_dir):
             self.class_wnids.add(subclass)
         
-        preprocess_transform_pretrain = transforms.Compose([
-                        transforms.Resize(256),     # Resize images to 256 x 256
-                        transforms.CenterCrop(224), # Center crop image
-                        transforms.RandomHorizontalFlip()
-        ])
-        train_ds_original = datasets.ImageFolder(train_dir, transform=preprocess_transform_pretrain)
-        test_ds_original = datasets.ImageFolder(val_img_dir, transform=preprocess_transform_pretrain)
+        if self.pretrain:
+            prep_trans_pretrain = transforms.Compose([
+                            transforms.Resize(256),     # Resize images to 256 x 256
+                            transforms.CenterCrop(224), # Center crop image
+                            transforms.RandomHorizontalFlip()
+            ])
+        else:
+            prep_trans_pretrain = transforms.Compose([
+                            transforms.RandomHorizontalFlip()
+            ])
+
+        train_ds_original = datasets.ImageFolder(train_dir, transform=prep_trans_pretrain)
+        test_ds_original = datasets.ImageFolder(val_img_dir, transform=prep_trans_pretrain)
         self.class_to_idx = train_ds_original.class_to_idx
         # classes_to_idx
         # {'n01443537': 0,
