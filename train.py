@@ -235,7 +235,7 @@ def train_model(
                 if epoch == 0 or ((epoch+1) % 1 ==0):
                     acc = evaluate_vague_nonvague_ENN(
                         model, mydata.test_loader, mydata.R, 
-                        mydata.num_classes, mydata.num_comps, 
+                        mydata.num_classes, mydata.num_comp, 
                         mydata.vague_classes_ids, 
                         epoch, device)
                     state = {
