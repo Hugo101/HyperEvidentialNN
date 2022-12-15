@@ -218,7 +218,7 @@ def make(args):
     if use_uncertainty:
         print("# use softplus activated model")
         if args.backbone == "EfficientNet-b3":
-            model = HENN_EfficientNet(num_singles)
+            model = HENN_EfficientNet(num_singles, pretrain=args.pretrain)
         elif args.backbone == "ResNet50":
             model = HENN_ResNet50(num_singles)
         else:
@@ -226,7 +226,7 @@ def make(args):
     else:
         print("# use regular model without activation (softmax will be used later")
         if args.backbone == "EfficientNet-b3":
-            model = EfficientNet_pretrain(num_singles)
+            model = EfficientNet_pretrain(num_singles, pretrain=args.pretrain)
         elif args.backbone == "ResNet50":
             model = ResNet50(num_singles)
         else:

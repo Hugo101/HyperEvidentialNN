@@ -284,7 +284,7 @@ def make(args):
     
     num_classes_both = num_singles + num_comps
     if args.backbone == "EfficientNet-b3":
-        model = EfficientNet_pretrain(num_classes_both)
+        model = EfficientNet_pretrain(num_classes_both, pretrain=args.pretrain)
     elif args.backbone == "ResNet50":
         model = ResNet50(num_classes_both)
     else:

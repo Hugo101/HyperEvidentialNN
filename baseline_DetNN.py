@@ -439,7 +439,7 @@ def make(args):
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
     
     if args.backbone == "EfficientNet-b3":
-        model = EfficientNet_pretrain(num_singles)
+        model = EfficientNet_pretrain(num_singles, pretrain=args.pretrain)
     elif args.backbone == "ResNet50":
         model = ResNet50(num_singles)
     else:
