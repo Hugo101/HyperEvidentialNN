@@ -65,6 +65,7 @@ def make(args):
             batch_size=args.batch_size,
             imagenet_hierarchy_path=args.data_dir,
             blur=args.blur,
+            blur_sigma=args.blur_sigma,
             pretrain=args.pretrain)
         num_singles = mydata.num_classes
         num_comps = mydata.num_comp
@@ -84,7 +85,8 @@ def make(args):
             args.data_dir, 
             num_comp=args.num_comp, 
             batch_size=args.batch_size,
-            blur=args.blur
+            blur=args.blur,
+            blur_sigma=args.blur_sigma,
             )
         num_singles = mydata.num_classes
         num_comps = mydata.num_comp

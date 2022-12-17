@@ -146,7 +146,8 @@ def train_valid_split(dataset, num_classes, valid_perc=0):
 
 def make_vague_samples(
     dataset, num_single, num_single_comp, vague_classes_ids, 
-    gauss_blur_sigma=15, blur=True):
+    blur=True,
+    gauss_blur_sigma=5):
 
     trans_blur = None
     if blur:
@@ -180,16 +181,17 @@ class tinyImageNetVague():
         root_dir, 
         num_comp=1, 
         batch_size=128, 
-        augment=True,
         ratio_train=0.9, 
         imagenet_hierarchy_path="./",
         duplicate=False,
         blur=True,
+        blur_sigma=15,
         pretrain=True, #if using pretrained model, resize img to 224
         ):
         self.name = "tinyimagenet"
         print('Loading TinyImageNet...')
         self.blur = blur
+        self.blur_sigma = blur_sigma
         self.duplicate = duplicate
         self.batch_size = batch_size
         self.pretrain = pretrain
@@ -254,11 +256,15 @@ class tinyImageNetVague():
         train_ds = make_vague_samples(
             train_ds_original, 
             self.num_classes, self.kappa, 
-            self.vague_classes_ids, blur=self.blur)
+            self.vague_classes_ids, 
+            blur=self.blur,
+            gauss_blur_sigma=self.blur_sigma)
         test_ds = make_vague_samples(
             test_ds_original, 
             self.num_classes, self.kappa, 
-            self.vague_classes_ids, blur=self.blur)
+            self.vague_classes_ids, 
+            blur=self.blur,
+            gauss_blur_sigma=self.blur_sigma)
         train_ds, valid_ds = train_valid_split(train_ds, self.kappa, valid_perc=1-ratio_train)
 
         print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')

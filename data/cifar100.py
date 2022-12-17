@@ -89,11 +89,12 @@ def get_sample_idx_by_class(dataset, num_classes):
 
 def make_vague_samples(
     dataset, num_single, num_single_comp, vague_classes_ids, 
-    guass_blur_sigma=3, blur=True):
+    blur=True, 
+    gauss_blur_sigma=3):
     
     trans_blur = None
     if blur:
-        trans_blur = transforms.GaussianBlur(kernel_size=(5, 9), sigma = guass_blur_sigma)
+        trans_blur = transforms.GaussianBlur(kernel_size=(5, 9), sigma = gauss_blur_sigma)
     
     sample_indices = [i for i in range(len(dataset))]
     num_samples_subclass = len([i for i in range(len(dataset)) if dataset[i][1] == 0])
@@ -135,10 +136,12 @@ class CIFAR100Vague:
         ratio_train=0.9,
         duplicate=False,
         hierarchy_dir="/home/cxl173430/data/DATASETS/cifar100_henn/",
-        blur=True):
+        blur=True,
+        blur_sigma=3):
         self.name = "cifar100"
         print("Loading CIFAR100...")
         self.blur = blur
+        self.blur_sigma = blur_sigma
         self.duplicate = duplicate
         self.batch_size = batch_size
         self.img_size = 32
@@ -190,11 +193,15 @@ class CIFAR100Vague:
         train_ds = make_vague_samples(
             train_ds_original, 
             self.num_classes, self.kappa,
-            self.vague_classes_ids, blur=self.blur)
+            self.vague_classes_ids, 
+            blur=self.blur,
+            gauss_blur_sigma=self.blur_sigma)
         test_ds = make_vague_samples(
             test_ds_original, 
             self.num_classes, self.kappa, 
-            self.vague_classes_ids, blur=self.blur)
+            self.vague_classes_ids,
+            blur=self.blur,
+            gauss_blur_sigma=self.blur_sigma)
         train_ds, valid_ds = train_valid_split(train_ds, self.kappa, valid_perc=1-ratio_train)
 
         print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')

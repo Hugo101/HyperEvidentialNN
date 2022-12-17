@@ -1,6 +1,11 @@
 dataset: tinyImageNet
 backbone: EfficientNet-b3
+pretrain: True
+blur: True
+blur_sigma: 15
+
 num_comp: 1
+
 #experiment type
 exp_type: 1
 
