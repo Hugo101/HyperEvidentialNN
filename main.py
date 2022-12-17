@@ -157,6 +157,7 @@ def main():
                                             entropy_lam=args.entropy_lam,
                                             forward_kl_pretrain=args.forward_kl_pretrain,
                                             exp_type=args.exp_type,
+                                            saved_path_pretrain=args.saved_path_pretrain,
                                             device=device,
                                             logdir=base_path,
                                             )
