@@ -1,0 +1,18 @@
+dataset: tinyimagenet
+backbone: EfficientNet-b3
+pretrain: True
+blur: True
+blur_sigma: 1
+
+num_comp: 25
+
+uncertainty: True
+
+batch_size: 64
+epochs: 50
+init_lr: 0.0001
+milestone1: 100
+milestone2: 150
+
+train: True
+test: True
