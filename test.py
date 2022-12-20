@@ -95,7 +95,7 @@ def evaluate_vague_nonvague_ENN(
         preds_all.append(preds)
 
     outputs_all = torch.cat(outputs_all, dim=0)
-    labels_all = torch.cat(labels_all, dim=0)
+    labels_all = torch.cat(labels_all, dim=0).cpu()
     true_labels = torch.cat(true_labels_all, dim=0)
     preds_all = torch.cat(preds_all, dim=0)
     acc = correct / len(labels_all)
