@@ -13,6 +13,7 @@ import random
 from helper_functions import CustomDataset, AddLabelDataset
 import csv
 import math  
+import time
 
 
 def create_val_folder(root_dir):
@@ -122,16 +123,18 @@ def get_sample_idx_by_class(dataset, num_classes):
     Return: [[0,1,...,499],[500, 501,...,999], ..., [..., 99999]]
     200 lists of each 500 samples 
     '''
+    sample_idx = []
     sample_idx_by_class = [[] for i in range(num_classes)]
     for i in range(len(dataset)):
         sample_idx_by_class[dataset[i][2]].append(i)
-    return sample_idx_by_class
+        sample_idx.append(i)
+    return sample_idx, sample_idx_by_class
 
 
 def train_valid_split(dataset, num_classes, valid_perc=0):
     train_class_indices = []
     valid_class_indices = []
-    sample_idx_by_class = get_sample_idx_by_class(dataset, num_classes)
+    _, sample_idx_by_class = get_sample_idx_by_class(dataset, num_classes)
     for samples in sample_idx_by_class:
         valid_samples = random.sample(samples, int(len(samples)*valid_perc))
         valid_class_indices.append(valid_samples)
@@ -147,20 +150,25 @@ def train_valid_split(dataset, num_classes, valid_perc=0):
 def make_vague_samples(
     dataset, num_single, num_single_comp, vague_classes_ids, 
     blur=True,
-    gauss_blur_sigma=5):
+    gauss_blur_sigma=5, data_train=True):
 
     trans_blur = None
     if blur:
         trans_blur = transforms.GaussianBlur(kernel_size=(35, 45), sigma = gauss_blur_sigma)
-
-    sample_indices = [i for i in range(len(dataset))]
-    num_samples_subclass = len([i for i in range(len(dataset)) if dataset[i][1] == 0]) #500 for TinyImageNet train   
+    sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
+    # sample_indices = [i for i in range(len(dataset))]
+    if data_train:
+        num_samples_subclass = 500 #500 for TinyImageNet train   
+    else:
+        num_samples_subclass = 50
     for k in range(num_single, num_single_comp): # i.e.: 200, 201
-        num_vague = math.floor(num_samples_subclass / (len(vague_classes_ids[k-num_single]) + 1.0)) # why this num: make sure all classes are balanced
+        num_vague = math.floor(num_samples_subclass / (len(vague_classes_ids[k-num_single]) + 1.0)) 
+        # why this num: make sure all classes are balanced
         num_nonvague = num_samples_subclass - num_vague
 
         for subclass in vague_classes_ids[k - num_single]:
-            idx_candidates = [i for i in range(len(dataset)) if dataset[i][1] == subclass]
+            # idx_candidates = [i for i in range(len(dataset)) if dataset[i][1] == subclass]
+            idx_candidates = sample_idx_by_class[subclass]
             idx_non_candidates = list(set(sample_indices)-set(idx_candidates))
             subset1 = Subset(dataset, idx_non_candidates) 
             subset2 = Subset(dataset, idx_candidates)
@@ -190,6 +198,7 @@ class tinyImageNetVague():
         ):
         self.name = "tinyimagenet"
         print('Loading TinyImageNet...')
+        start_time = time.time()
         self.blur = blur
         self.blur_sigma = blur_sigma
         self.duplicate = duplicate
@@ -204,6 +213,8 @@ class tinyImageNetVague():
         self.num_val = num_train - self.num_train
         self.num_test = 10000
         
+        num_workers = 4  #tune this on different servers
+        
         train_dir = os.path.join(root_dir, 'tiny-imagenet-200/train')
         val_img_dir = os.path.join(root_dir, 'tiny-imagenet-200/val/images')
 
@@ -217,13 +228,17 @@ class tinyImageNetVague():
                             transforms.CenterCrop(224), # Center crop image
                             transforms.RandomHorizontalFlip()
             ])
+            prep_trans_test = transforms.Compose([
+                            transforms.Resize(224),     # Resize images to 224 x 224
+            ])
         else:
             prep_trans_pretrain = transforms.Compose([
                             transforms.RandomHorizontalFlip()
             ])
+            prep_trans_test = None
 
         train_ds_original = datasets.ImageFolder(train_dir, transform=prep_trans_pretrain)
-        test_ds_original = datasets.ImageFolder(val_img_dir, transform=prep_trans_pretrain)
+        test_ds_original = datasets.ImageFolder(val_img_dir, transform=prep_trans_test)
         self.class_to_idx = train_ds_original.class_to_idx
         # classes_to_idx
         # {'n01443537': 0,
@@ -258,13 +273,15 @@ class tinyImageNetVague():
             self.num_classes, self.kappa, 
             self.vague_classes_ids, 
             blur=self.blur,
-            gauss_blur_sigma=self.blur_sigma)
+            gauss_blur_sigma=self.blur_sigma,
+            data_train=True)
         test_ds = make_vague_samples(
             test_ds_original, 
             self.num_classes, self.kappa, 
             self.vague_classes_ids, 
             blur=self.blur,
-            gauss_blur_sigma=self.blur_sigma)
+            gauss_blur_sigma=self.blur_sigma,
+            data_train=False)
         train_ds, valid_ds = train_valid_split(train_ds, self.kappa, valid_perc=1-ratio_train)
 
         print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
@@ -281,9 +298,12 @@ class tinyImageNetVague():
 
         if self.duplicate:
             train_ds = self.modify_vague_samples(train_ds)
-        self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=1, pin_memory=True)
-        self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
-        self.test_loader = DataLoader(test_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
+        self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+        self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=num_workers, pin_memory=True)
+        self.test_loader = DataLoader(test_ds, batch_size=batch_size, num_workers=num_workers, pin_memory=True)
+        
+        time_load = time.time() - start_time
+        print(f"Loading data finished. Time: {time_load//60:.0f}m {time_load%60:.0f}s")
 
 
     def get_hierarchy(self, imagenet_hierarchy_path):
@@ -351,8 +371,15 @@ class tinyImageNetVague():
     def modify_vague_samples(self, dataset):
         C = self.vague_classes_ids
         for k in range(self.num_classes, self.kappa): # K, kappa
-            idx1 = [i for i in range(len(dataset)) if dataset[i][2] != k]
-            idx2 = [i for i in range(len(dataset)) if dataset[i][2] == k] 
+            # idx1 = [i for i in range(len(dataset)) if dataset[i][2] != k]
+            # idx2 = [i for i in range(len(dataset)) if dataset[i][2] == k] 
+            idx1 = []
+            idx2 = []
+            for i in range(len(dataset)):
+                if dataset[i][2] != k:
+                    idx1.append(i)
+                else:
+                    idx2.append(i)
 
             subset_1 = Subset(dataset, idx1)  # the rest 
             subset_2 = Subset(dataset, idx2)  #vague composite k
