@@ -195,6 +195,7 @@ class tinyImageNetVague():
         blur=True,
         blur_sigma=15,
         pretrain=True, #if using pretrained model, resize img to 224
+        num_workers=4, #tune this on different servers
         ):
         self.name = "tinyimagenet"
         print('Loading TinyImageNet...')
@@ -204,6 +205,7 @@ class tinyImageNetVague():
         self.duplicate = duplicate
         self.batch_size = batch_size
         self.pretrain = pretrain
+        self.num_workers = num_workers
         self.img_size = 64
         self.num_classes = 200 #K  
         self.num_comp = num_comp
@@ -212,33 +214,24 @@ class tinyImageNetVague():
         self.num_train = int(num_train * ratio_train)
         self.num_val = num_train - self.num_train
         self.num_test = 10000
-        
-        num_workers = 4  #tune this on different servers
-        
+
         train_dir = os.path.join(root_dir, 'tiny-imagenet-200/train')
         val_img_dir = os.path.join(root_dir, 'tiny-imagenet-200/val/images')
 
         self.class_wnids = set() # class names in the format of nids: {'n01443537', 'n01629819', ... }
         for subclass in os.listdir(train_dir):
             self.class_wnids.add(subclass)
-        
+
         if self.pretrain:
-            prep_trans_pretrain = transforms.Compose([
+            prep_trans = transforms.Compose([
                             transforms.Resize(256),     # Resize images to 256 x 256
                             transforms.CenterCrop(224), # Center crop image
-                            transforms.RandomHorizontalFlip()
-            ])
-            prep_trans_test = transforms.Compose([
-                            transforms.Resize(224),     # Resize images to 224 x 224
             ])
         else:
-            prep_trans_pretrain = transforms.Compose([
-                            transforms.RandomHorizontalFlip()
-            ])
-            prep_trans_test = None
+            prep_trans = None
 
-        train_ds_original = datasets.ImageFolder(train_dir, transform=prep_trans_pretrain)
-        test_ds_original = datasets.ImageFolder(val_img_dir, transform=prep_trans_test)
+        train_ds_original = datasets.ImageFolder(train_dir, transform=prep_trans)
+        test_ds_original = datasets.ImageFolder(val_img_dir, transform=prep_trans)
         self.class_to_idx = train_ds_original.class_to_idx
         # classes_to_idx
         # {'n01443537': 0,
@@ -286,15 +279,23 @@ class tinyImageNetVague():
 
         print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
 
-        pre_norm = transforms.Compose([
-            transforms.ToTensor(), 
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406], 
-                std =[0.229, 0.224, 0.225])])
+        # Normalization
+        if self.pretrain:
+            norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        else:
+            norm = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 
-        train_ds = CustomDataset(train_ds, transform=pre_norm)
-        valid_ds = CustomDataset(valid_ds, transform=pre_norm)
-        test_ds = CustomDataset(test_ds, transform=pre_norm)
+        pre_norm_train = transforms.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(), 
+            norm])
+        pre_norm_test = transforms.Compose([
+            transforms.ToTensor(),
+            norm])
+
+        train_ds = CustomDataset(train_ds, transform=pre_norm_train)
+        valid_ds = CustomDataset(valid_ds, transform=pre_norm_test)
+        test_ds = CustomDataset(test_ds, transform=pre_norm_test)
 
         if self.duplicate:
             train_ds = self.modify_vague_samples(train_ds)
