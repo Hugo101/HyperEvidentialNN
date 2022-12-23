@@ -209,7 +209,7 @@ def edl_digamma_loss(
     # Entropy
     if exp_type == 4:
         # entropy = entropy_SL(alpha)
-        entropy = Dirichlet(alpha).entropy()
+        entropy = Dirichlet(alpha).entropy().mean()
         loss = ll_mean - entropy_lam * entropy
         return loss, ll_mean.detach().cpu().item(), entropy.detach().cpu().item()
 ### ### 
