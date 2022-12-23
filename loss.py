@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+from torch.distributions.dirichlet import Dirichlet
 from common_tools import set_device
 
 kl_loss = nn.KLDivLoss(reduction="batchmean")
@@ -207,7 +208,8 @@ def edl_digamma_loss(
     
     # Entropy
     if exp_type == 4:
-        entropy = entropy_SL(alpha)
+        # entropy = entropy_SL(alpha)
+        entropy = Dirichlet(alpha).entropy()
         loss = ll_mean - entropy_lam * entropy
         return loss, ll_mean.detach().cpu().item(), entropy.detach().cpu().item()
 ### ### 

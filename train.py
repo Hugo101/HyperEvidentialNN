@@ -103,7 +103,8 @@ def train_model(
     if exp_type == 3:
         pretrainedModel = EfficientNet_pretrain(num_classes)
         checkpoint = torch.load(saved_path_pretrain, map_location=device)
-        pretrainedModel.load_state_dict(checkpoint["model_state_dict"])
+        # pretrainedModel.load_state_dict(checkpoint["model_state_dict"])
+        pretrainedModel.load_state_dict(checkpoint["model_state_dict_best"])
         pretrainedModel.eval()
         pretrainedModel = pretrainedModel.to(device)
     
