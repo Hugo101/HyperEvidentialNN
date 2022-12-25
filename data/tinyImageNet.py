@@ -14,6 +14,7 @@ from helper_functions import CustomDataset, AddLabelDataset
 import csv
 import math  
 import time
+from sklearn.model_selection import train_test_split
 
 
 def create_val_folder(root_dir):
@@ -131,36 +132,50 @@ def get_sample_idx_by_class(dataset, num_classes):
     return sample_idx, sample_idx_by_class
 
 
-def train_valid_split(dataset, num_classes, valid_perc=0):
-    train_class_indices = []
-    valid_class_indices = []
-    _, sample_idx_by_class = get_sample_idx_by_class(dataset, num_classes)
-    for samples in sample_idx_by_class:
-        valid_samples = random.sample(samples, int(len(samples)*valid_perc))
-        valid_class_indices.append(valid_samples)
-        train_class_indices.append(list(set(samples)-set(valid_samples)))
-    valid_ds = Subset(dataset, valid_class_indices[0])
-    train_ds = Subset(dataset, train_class_indices[0])
-    for k in range(1, num_classes):
-        valid_ds += Subset(dataset, valid_class_indices[k])
-        train_ds += Subset(dataset, train_class_indices[k])
-    return train_ds, valid_ds
+# def train_valid_split(dataset, num_classes, valid_perc=0):
+#     train_class_indices = []
+#     valid_class_indices = []
+#     _, sample_idx_by_class = get_sample_idx_by_class(dataset, num_classes)
+#     for samples in sample_idx_by_class:
+#         valid_samples = random.sample(samples, int(len(samples)*valid_perc))
+#         valid_class_indices.append(valid_samples)
+#         train_class_indices.append(list(set(samples)-set(valid_samples)))
+#     valid_ds = Subset(dataset, valid_class_indices[0])
+#     train_ds = Subset(dataset, train_class_indices[0])
+#     for k in range(1, num_classes):
+#         valid_ds += Subset(dataset, valid_class_indices[k])
+#         train_ds += Subset(dataset, train_class_indices[k])
+#     return train_ds, valid_ds
+
+def train_valid_split(data, valid_perc=0.1, seed=42):
+    # generate indices: instead of the actual data we pass in integers instead
+    train_indices, valid_indices, _, _ = train_test_split(
+        range(len(data)),
+        data.targets,
+        stratify=data.targets,
+        test_size=valid_perc,
+        random_state=seed
+    )
+    # generate subset based on indices
+    train_split = Subset(data, train_indices)
+    valid_split = Subset(data, valid_indices)
+    return train_split, valid_split
 
 
 def make_vague_samples(
     dataset, num_single, num_single_comp, vague_classes_ids, 
     blur=True,
-    gauss_blur_sigma=5, data_train=True):
+    gauss_kernel_size=5, data_train=True):
 
     trans_blur = None
     if blur:
-        trans_blur = transforms.GaussianBlur(kernel_size=(35, 45), sigma = gauss_blur_sigma)
+        trans_blur = transforms.GaussianBlur(kernel_size=gauss_kernel_size, sigma=gauss_kernel_size/3)
     sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
     # sample_indices = [i for i in range(len(dataset))]
     if data_train:
-        num_samples_subclass = 500 #500 for TinyImageNet train   
+        num_samples_subclass = 500 # 500 for TinyImageNet train
     else:
-        num_samples_subclass = 50
+        num_samples_subclass = 50  # 50 for TinyImageNet test
     for k in range(num_single, num_single_comp): # i.e.: 200, 201
         num_vague = math.floor(num_samples_subclass / (len(vague_classes_ids[k-num_single]) + 1.0)) 
         # why this num: make sure all classes are balanced
@@ -193,15 +208,15 @@ class tinyImageNetVague():
         imagenet_hierarchy_path="./",
         duplicate=False,
         blur=True,
-        blur_sigma=15,
+        gauss_kernel_size=5,
         pretrain=True, #if using pretrained model, resize img to 224
         num_workers=4, #tune this on different servers
-        ):
+        seed=42):
         self.name = "tinyimagenet"
         print('Loading TinyImageNet...')
         start_time = time.time()
         self.blur = blur
-        self.blur_sigma = blur_sigma
+        self.gauss_kernel_size = gauss_kernel_size
         self.duplicate = duplicate
         self.batch_size = batch_size
         self.pretrain = pretrain
@@ -217,27 +232,19 @@ class tinyImageNetVague():
 
         train_dir = os.path.join(root_dir, 'tiny-imagenet-200/train')
         val_img_dir = os.path.join(root_dir, 'tiny-imagenet-200/val/images')
-
-        self.class_wnids = set() # class names in the format of nids: {'n01443537', 'n01629819', ... }
-        for subclass in os.listdir(train_dir):
-            self.class_wnids.add(subclass)
-
-        if self.pretrain:
-            prep_trans = transforms.Compose([
-                            transforms.Resize(256),     # Resize images to 256 x 256
-                            transforms.CenterCrop(224), # Center crop image
-            ])
-        else:
-            prep_trans = None
-
-        train_ds_original = datasets.ImageFolder(train_dir, transform=prep_trans)
-        test_ds_original = datasets.ImageFolder(val_img_dir, transform=prep_trans)
+        train_ds_original = datasets.ImageFolder(train_dir)
+        test_ds_original = datasets.ImageFolder(val_img_dir)
         self.class_to_idx = train_ds_original.class_to_idx
         # classes_to_idx
         # {'n01443537': 0,
         #  'n01629819': 1,
         #  ...
         # 'n12267677': 199}
+        
+        # class names in the format of nids: {'n01443537', 'n01629819', ... }
+        self.class_wnids = set()
+        for subclass in os.listdir(train_dir):
+            self.class_wnids.add(subclass)
 
         self.hierarchy = self.get_hierarchy(imagenet_hierarchy_path) 
         self.parent_to_subclasses = self.get_ParentToSubclasses()
@@ -250,8 +257,8 @@ class tinyImageNetVague():
         self.idx_to_class = {value:key for key, value in self.class_to_idx.items()}
         for i in range(self.num_comp):
             self.idx_to_class[self.num_classes + i] = [self.idx_to_class[k] for k in self.vague_classes_ids[i]]
-        # {0: 'n01443537',
-        # 1: 'n01629819',
+        # { 0: 'n01443537',
+        #   1: 'n01629819',
         # 199: 'n12267677',
         # 200: ['n07871810', 'n07873807', 'n07875152']}
         self.R = [[el] for el in range(self.num_classes)] 
@@ -266,32 +273,40 @@ class tinyImageNetVague():
             self.num_classes, self.kappa, 
             self.vague_classes_ids, 
             blur=self.blur,
-            gauss_blur_sigma=self.blur_sigma,
+            gauss_kernel_size=self.gauss_kernel_size,
             data_train=True)
         test_ds = make_vague_samples(
             test_ds_original, 
             self.num_classes, self.kappa, 
             self.vague_classes_ids, 
             blur=self.blur,
-            gauss_blur_sigma=self.blur_sigma,
+            gauss_kernel_size=self.gauss_kernel_size,
             data_train=False)
-        train_ds, valid_ds = train_valid_split(train_ds, self.kappa, valid_perc=1-ratio_train)
-
+        train_ds, valid_ds = train_valid_split(train_ds, valid_perc=1-ratio_train, seed=seed)
         print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
 
-        # Normalization
         if self.pretrain:
             norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            pre_norm_train = transforms.Compose([
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(), 
+                norm])
+            pre_norm_test = transforms.Compose([
+                transforms.Resize(256),     # Resize images to 256 x 256
+                transforms.CenterCrop(224), # Center crop image
+                transforms.ToTensor(),
+                norm])
+
         else:
             norm = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-
-        pre_norm_train = transforms.Compose([
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(), 
-            norm])
-        pre_norm_test = transforms.Compose([
-            transforms.ToTensor(),
-            norm])
+            pre_norm_train = transforms.Compose([
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(), 
+                norm])
+            pre_norm_test = transforms.Compose([
+                transforms.ToTensor(),
+                norm])
 
         train_ds = CustomDataset(train_ds, transform=pre_norm_train)
         valid_ds = CustomDataset(valid_ds, transform=pre_norm_test)

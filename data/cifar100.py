@@ -8,6 +8,7 @@ import math
 from helper_functions import CustomDataset, AddLabelDataset
 from data.tinyImageNet import train_valid_split
 import tarfile
+import time
 from torchvision.datasets.utils import download_url
 
 def create_path(dir):
@@ -81,31 +82,42 @@ class CIFAR100:
             self.testset, batch_size=batch_size, shuffle=False,
             num_workers=4)
 
+
 def get_sample_idx_by_class(dataset, num_classes):
+    sample_idx = []
     sample_idx_by_class = [[] for i in range(num_classes)]
     for i in range(len(dataset)):
-        sample_idx_by_class[dataset[i][1]].append(i)
-    return sample_idx_by_class
+        sample_idx_by_class[dataset[i][2]].append(i)
+        sample_idx.append(i)
+    return sample_idx, sample_idx_by_class
+
 
 def make_vague_samples(
     dataset, num_single, num_single_comp, vague_classes_ids, 
     blur=True, 
-    gauss_blur_sigma=3):
+    gauss_kernel_size=3, data_train=True):
     
     trans_blur = None
     if blur:
-        trans_blur = transforms.GaussianBlur(kernel_size=(5, 9), sigma = gauss_blur_sigma)
-    
-    sample_indices = [i for i in range(len(dataset))]
-    num_samples_subclass = len([i for i in range(len(dataset)) if dataset[i][1] == 0])
+        trans_blur = transforms.GaussianBlur(kernel_size=gauss_kernel_size, sigma=gauss_kernel_size/3)
+    sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
+    # sample_indices = [i for i in range(len(dataset))]
+    if data_train:
+        num_samples_subclass = 500  #cifar100 train per class
+    else:
+        num_samples_subclass = 100  #cifar100 test per class
+    # num_samples_subclass = len([i for i in range(len(dataset)) if dataset[i][1] == 0])
     for k in range(num_single, num_single_comp):
         num_vague = math.floor(num_samples_subclass / (len(vague_classes_ids[k-num_single]) + 1.0))
         num_nonvague = num_samples_subclass - num_vague
+        
         for subclass in vague_classes_ids[k - num_single]:
-            idx_candidates = [i for i in range(len(dataset)) if dataset[i][1] == subclass]
+            # idx_candidates = [i for i in range(len(dataset)) if dataset[i][1] == subclass]
+            idx_candidates = sample_idx_by_class[subclass]
             idx_non_candidates = list(set(sample_indices)-set(idx_candidates))
             subset1 = Subset(dataset, idx_non_candidates)
             subset2 = Subset(dataset, idx_candidates)
+            
             nonvague_samples, vague_samples = random_split(subset2, [num_nonvague, num_vague])
             vague_samples = CustomDataset(
                 vague_samples, class_num=k, transform=trans_blur)
@@ -137,13 +149,19 @@ class CIFAR100Vague:
         duplicate=False,
         hierarchy_dir="/home/cxl173430/data/DATASETS/cifar100_henn/",
         blur=True,
-        blur_sigma=3):
+        gauss_kernel_size=3,
+        pretrain=True,
+        num_workers=4,
+        seed=42):
         self.name = "cifar100"
         print("Loading CIFAR100...")
+        start_time = time.time()
         self.blur = blur
-        self.blur_sigma = blur_sigma
+        self.gauss_kernel_size = gauss_kernel_size
         self.duplicate = duplicate
         self.batch_size = batch_size
+        self.pretrain = pretrain
+        self.num_workers = num_workers
         self.img_size = 32
         self.num_classes = 100
         self.num_comp = num_comp
@@ -154,13 +172,8 @@ class CIFAR100Vague:
         self.num_val = num_train - self.num_train
         self.num_test = 10000
 
-        trans = transforms.Compose([
-            transforms.RandomHorizontalFlip(), 
-            transforms.RandomCrop(32, padding=4), 
-            ])
-
-        train_ds_original = datasets.CIFAR100(root=data_dir, download=True, transform=trans)
-        test_ds_original = datasets.CIFAR100(root = data_dir, train = False)
+        train_ds_original = datasets.CIFAR100(root=data_dir, download=True)
+        test_ds_original = datasets.CIFAR100(root=data_dir, train=False)
         self.class_to_idx = train_ds_original.class_to_idx
 
         #get hiretical
@@ -195,32 +208,55 @@ class CIFAR100Vague:
             self.num_classes, self.kappa,
             self.vague_classes_ids, 
             blur=self.blur,
-            gauss_blur_sigma=self.blur_sigma)
+            gauss_kernel_size=self.gauss_kernel_size,
+            data_train=True)
         test_ds = make_vague_samples(
             test_ds_original, 
             self.num_classes, self.kappa, 
             self.vague_classes_ids,
             blur=self.blur,
-            gauss_blur_sigma=self.blur_sigma)
-        train_ds, valid_ds = train_valid_split(train_ds, self.kappa, valid_perc=1-ratio_train)
+            gauss_kernel_size=self.gauss_kernel_size,
+            data_train=False)
+        train_ds, valid_ds = train_valid_split(train_ds, valid_perc=1-ratio_train, seed=seed)
 
         print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
 
-        normalized = transforms.Compose([
-            transforms.ToTensor(), 
-            transforms.Normalize(
-            mean=[0.507, 0.487, 0.441], 
-            std=[0.267, 0.256, 0.276])])
+        if self.pretrain:
+            norm = transforms.Normalize(mean=[0.507, 0.487, 0.441], std=[0.267, 0.256, 0.276])
+            pre_norm_train = transforms.Compose([
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                norm]
+            )
+            pre_norm_test = transforms.Compose([
+                transforms.Resize(256),     # Resize images to 256 x 256
+                transforms.CenterCrop(224), # Center crop image
+                transforms.ToTensor(),
+                norm])
+        else:
+            norm = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+            pre_norm_train = transforms.Compose([
+                transforms.RandomCrop(32, padding=4), 
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(), 
+                norm])
+            pre_norm_test = transforms.Compose([
+                transforms.ToTensor(),
+                norm])
 
-        train_ds = CustomDataset(train_ds, transform=normalized)
-        valid_ds = CustomDataset(valid_ds, transform=normalized)
-        test_ds = CustomDataset(test_ds, transform=normalized)
+        train_ds = CustomDataset(train_ds, transform=pre_norm_train)
+        valid_ds = CustomDataset(valid_ds, transform=pre_norm_test)
+        test_ds = CustomDataset(test_ds, transform=pre_norm_test)
 
         if self.duplicate:
             train_ds = self.modify_vague_samples(train_ds)
-        self.train_loader = DataLoader(train_ds, batch_size, shuffle=True, num_workers=1, pin_memory=True)
-        self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
-        self.test_loader = DataLoader(test_ds, batch_size=batch_size, num_workers=1, pin_memory=True)
+        self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=True)
+        self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=self.num_workers, pin_memory=True)
+        self.test_loader = DataLoader(test_ds, batch_size=batch_size, num_workers=self.num_workers, pin_memory=True)
+        
+        time_load = time.time() - start_time
+        print(f"Loading data finished. Time: {time_load//60:.0f}m {time_load%60:.0f}s")
 
 
     def get_vague_classes_v2(self):

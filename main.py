@@ -65,8 +65,9 @@ def make(args):
             batch_size=args.batch_size,
             imagenet_hierarchy_path=args.data_dir,
             blur=args.blur,
-            blur_sigma=args.blur_sigma,
-            pretrain=args.pretrain)
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            seed=args.seed)
         num_singles = mydata.num_classes
         num_comps = mydata.num_comp
         print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
@@ -86,7 +87,9 @@ def make(args):
             num_comp=args.num_comp, 
             batch_size=args.batch_size,
             blur=args.blur,
-            blur_sigma=args.blur_sigma,
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            seed=args.seed
             )
         num_singles = mydata.num_classes
         num_comps = mydata.num_comp
