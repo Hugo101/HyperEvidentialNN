@@ -90,8 +90,8 @@ def train_teacher(
 
             # Iterate over data.
             for batch_idx, (inputs, label_singl, labels) in enumerate(dataloader):
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+                inputs = inputs.to(device, non_blocking=True)
+                labels = labels.to(device, non_blocking=True)
                 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -174,7 +174,7 @@ def evaluate_teacher(
     outputs_all = []
     for batch in val_loader:
         images, labels_singl, labels = batch
-        images, labels = images.to(device), labels.to(device)
+        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         output = model(images)
         loss = criterion(output, labels)
         _, preds = torch.max(output, 1)

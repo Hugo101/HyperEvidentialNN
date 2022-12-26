@@ -61,14 +61,14 @@ def validate(model, dataloader, criterion, K, epoch):
     running_loss = 0.0
     running_corrects_GT = 0.0
     for batch_idx, (inputs, single_labels_GT, _) in enumerate(dataloader):
-        inputs = inputs.to(device)
-        labels = single_labels_GT.to(device)
+        inputs = inputs.to(device, non_blocking=True)
+        labels = single_labels_GT.to(device, non_blocking=True)
         # forward
         with torch.no_grad():
             outputs = model(inputs)
             _, preds = torch.max(outputs, 1)
             y = one_hot_embedding(labels, K, device)
-            y = y.to(device)
+            y = y.to(device, non_blocking=True)
             loss, loss_first, loss_second = criterion(
                                 outputs, y.float(), epoch, K, 
                                 None, 0, None, None, 
@@ -122,13 +122,13 @@ def train_ENN(
         for batch_idx, (inputs, single_labels_GT, labels) in enumerate(dataloader):
             # zero the parameter gradients
             optimizer.zero_grad()
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-            single_labels_GT = single_labels_GT.to(device)
+            inputs = inputs.to(device, non_blocking=True)
+            labels = labels.to(device, non_blocking=True)
+            single_labels_GT = single_labels_GT.to(device, non_blocking=True)
             outputs = model(inputs)
             _, preds = torch.max(outputs, 1)
             y = one_hot_embedding(labels, K, device)
-            y = y.to(device)
+            y = y.to(device, non_blocking=True)
             loss, loss_first, loss_second = criterion(
                                 outputs, y.float(), epoch, K, 
                                 None, 0, None, None, 

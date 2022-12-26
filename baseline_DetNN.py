@@ -92,9 +92,9 @@ def train_DetNN(
             epoch_acc, epoch_acc_GT = 0.0, 0.0
             # Iterate over data.
             for batch_idx, (inputs, single_labels_GT, labels) in enumerate(dataloader):
-                inputs = inputs.to(device)
-                labels = labels.to(device)
-                single_labels_GT = single_labels_GT.to(device)
+                inputs = inputs.to(device, non_blocking=True)
+                labels = labels.to(device, non_blocking=True)
+                single_labels_GT = single_labels_GT.to(device, non_blocking=True)
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 # forward
@@ -230,7 +230,7 @@ def evaluate_cutoff(
     # losses = []
     for batch in val_loader:
         images, _, labels = batch
-        images, labels = images.to(device), labels.to(device)
+        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         output = model(images)
         total_correct += num_accurate_baseline(output, labels, R, cutoff, detNN=detNN)
         total_samples += len(labels)
@@ -341,8 +341,8 @@ def evaluate_vague_nonvague_final(
     total_samples = 0
     for batch in test_loader:
         images, single_labels_GT, labels = batch
-        images, labels = images.to(device), labels.to(device)
-        single_labels_GT = single_labels_GT.to(device)
+        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+        single_labels_GT = single_labels_GT.to(device, non_blocking=True)
         output = model(images)
         preds = output.argmax(dim=1)
         total_correct += torch.sum(preds == single_labels_GT.data) # nonvague

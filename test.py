@@ -84,8 +84,8 @@ def evaluate_vague_nonvague_ENN(
     correct = 0
     for batch in val_loader:
         images, single_labels_GT, labels = batch
-        images, labels = images.to(device), labels.to(device)
-        single_labels_GT = single_labels_GT.to(device)
+        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+        single_labels_GT = single_labels_GT.to(device, non_blocking=True)
         output = model(images)
         preds = output.argmax(dim=1)
         correct += torch.sum(preds == labels.data)
@@ -158,8 +158,8 @@ def evaluate_nonvague_HENN_final(
     true_labels_all = []
     for batch in test_loader:
         images, single_labels_GT, _ = batch
-        images = images.to(device)
-        labels = single_labels_GT.to(device)
+        images = images.to(device, non_blocking=True)
+        labels = single_labels_GT.to(device, non_blocking=True)
         output = model(images)
         output_all.append(output)
         true_labels_all.append(labels)
