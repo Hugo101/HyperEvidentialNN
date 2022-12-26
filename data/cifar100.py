@@ -283,13 +283,20 @@ class CIFAR100Vague:
     def modify_vague_samples(self, dataset):
         C = self.vague_classes_ids
         for k in range(self.num_classes, self.kappa): # K, kappa
-            idx1 = [i for i in range(len(dataset)) if dataset[i][2] != k]
-            idx2 = [i for i in range(len(dataset)) if dataset[i][2] == k] 
+            # idx1 = [i for i in range(len(dataset)) if dataset[i][2] != k]
+            # idx2 = [i for i in range(len(dataset)) if dataset[i][2] == k] 
+            idx1 = []
+            idx2 = []
+            for i in range(len(dataset)):
+                if dataset[i][2] != k:
+                    idx1.append(i)
+                else:
+                    idx2.append(i)
 
             subset_1 = Subset(dataset, idx1)  # the rest 
             subset_2 = Subset(dataset, idx2)  #vague composite k
-            copies = CustomDataset(subset_2, class_num=C[k - self.num_classes][0])
+            copies = CustomDataset(subset_2, comp_class_id=C[k - self.num_classes][0])
             for j in range(1, len(C[k - self.num_classes])):
-                copies += CustomDataset(subset_2, class_num=C[k - self.num_classes][j])
+                copies += CustomDataset(subset_2, comp_class_id=C[k - self.num_classes][j])
             dataset = subset_1 + copies
         return dataset
