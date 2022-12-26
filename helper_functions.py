@@ -20,18 +20,19 @@ class AddLabelDataset(Dataset):
     def __len__(self):
         return len(self.dataset)
 
+
 class CustomDataset(Dataset):
-    def __init__(self, dataset, class_num=None, transform=None):
+    def __init__(self, dataset, comp_class_id=None, transform=None):
         self.dataset = dataset
         self.transform = transform
-        self.class_num = class_num
+        self.comp_class_id = comp_class_id
         
     def __getitem__(self, index):
         x, y_truth_single, y = self.dataset[index]
         if self.transform:
             x = self.transform(x)
-        if self.class_num:
-            return x, y_truth_single, self.class_num
+        if self.comp_class_id:
+            return x, y_truth_single, self.comp_class_id
         else:
             return x, y_truth_single, y
         
