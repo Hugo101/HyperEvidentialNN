@@ -166,36 +166,39 @@ def make_vague_samples(
     dataset, num_single, num_single_comp, vague_classes_ids, 
     blur=True,
     gauss_kernel_size=5, data_train=True):
-
     trans_blur = None
     if blur:
         trans_blur = transforms.GaussianBlur(kernel_size=gauss_kernel_size, sigma=gauss_kernel_size/3)
-    sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
-    # sample_indices = [i for i in range(len(dataset))]
+    all_sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
+
     if data_train:
-        num_samples_subclass = 500 # 500 for TinyImageNet train
+        num_samples_subclass = 450 # 450 for TinyImageNet train
     else:
-        num_samples_subclass = 50  # 50 for TinyImageNet test
+        num_samples_subclass = 50  # 50 for TinyImageNet valid / test
+    
+    total_vague_examples_ids = []
+    total_vague_examples = []
     for k in range(num_single, num_single_comp): # i.e.: 200, 201
-        num_vague = math.floor(num_samples_subclass / (len(vague_classes_ids[k-num_single]) + 1.0)) 
         # why this num: make sure all classes are balanced
-        num_nonvague = num_samples_subclass - num_vague
-
+        num_vague = math.floor(num_samples_subclass / (len(vague_classes_ids[k-num_single]) + 1.0)) 
         for subclass in vague_classes_ids[k - num_single]:
-            # idx_candidates = [i for i in range(len(dataset)) if dataset[i][1] == subclass]
             idx_candidates = sample_idx_by_class[subclass]
-            idx_non_candidates = list(set(sample_indices)-set(idx_candidates))
-            subset1 = Subset(dataset, idx_non_candidates) 
-            subset2 = Subset(dataset, idx_candidates)
-
-            nonvague_samples, vague_samples = random_split(subset2, [num_nonvague, num_vague])
+            vague_ids_subclass = random.sample(idx_candidates, num_vague)
+            vague_selected = Subset(dataset, vague_ids_subclass)
             # give new labels for vague images 
             vague_samples = CustomDataset(
-                vague_samples, class_num=k, transform=trans_blur)
+                vague_selected, comp_class_id=k, transform=trans_blur)
+            total_vague_examples_ids.extend(vague_ids_subclass)
+            total_vague_examples.append(vague_samples)
+            
+    idx_non_candidates = list(set(all_sample_indices)-set(total_vague_examples_ids))
+    nonvague_examples = Subset(dataset, idx_non_candidates)
+    
+    for vague_exam in total_vague_examples:
+        nonvague_examples += vague_exam
+    
+    return nonvague_examples
 
-            dataset = subset1 + nonvague_samples + vague_samples
-            ### can we avoid changing the order of samples in dataset?
-    return dataset
 
 
 class tinyImageNetVague():
@@ -266,25 +269,33 @@ class tinyImageNetVague():
             self.R.append(el)
         print(f"Actual label sets\n R: {self.R}")
 
+        train_ds_original, valid_ds_original = train_valid_split(train_ds_original, valid_perc=1-ratio_train, seed=seed)
         train_ds_original = AddLabelDataset(train_ds_original) #add an aditional label
+        valid_ds_original = AddLabelDataset(valid_ds_original)
         test_ds_original = AddLabelDataset(test_ds_original)
+
         train_ds = make_vague_samples(
-            train_ds_original, 
-            self.num_classes, self.kappa, 
-            self.vague_classes_ids, 
+            train_ds_original,
+            self.num_classes, self.kappa,
+            self.vague_classes_ids,
             blur=self.blur,
             gauss_kernel_size=self.gauss_kernel_size,
             data_train=True)
-        test_ds = make_vague_samples(
-            test_ds_original, 
-            self.num_classes, self.kappa, 
-            self.vague_classes_ids, 
+        valid_ds = make_vague_samples(
+            valid_ds_original,
+            self.num_classes, self.kappa,
+            self.vague_classes_ids,
             blur=self.blur,
             gauss_kernel_size=self.gauss_kernel_size,
             data_train=False)
-        train_ds, valid_ds = train_valid_split(train_ds, valid_perc=1-ratio_train, seed=seed)
-        print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
-
+        test_ds = make_vague_samples(
+            test_ds_original,
+            self.num_classes, self.kappa,
+            self.vague_classes_ids,
+            blur=self.blur,
+            gauss_kernel_size=self.gauss_kernel_size,
+            data_train=False)
+        
         if self.pretrain:
             norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             pre_norm_train = transforms.Compose([
@@ -297,7 +308,6 @@ class tinyImageNetVague():
                 transforms.CenterCrop(224), # Center crop image
                 transforms.ToTensor(),
                 norm])
-
         else:
             norm = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
             pre_norm_train = transforms.Compose([
@@ -314,6 +324,8 @@ class tinyImageNetVague():
 
         if self.duplicate:
             train_ds = self.modify_vague_samples(train_ds)
+        
+        print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
         self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
         self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=num_workers, pin_memory=True)
         self.test_loader = DataLoader(test_ds, batch_size=batch_size, num_workers=num_workers, pin_memory=True)
@@ -399,9 +411,9 @@ class tinyImageNetVague():
 
             subset_1 = Subset(dataset, idx1)  # the rest 
             subset_2 = Subset(dataset, idx2)  #vague composite k
-            copies = CustomDataset(subset_2, class_num=C[k - self.num_classes][0])
+            copies = CustomDataset(subset_2, comp_class_id=C[k - self.num_classes][0])
             for j in range(1, len(C[k - self.num_classes])):
-                copies += CustomDataset(subset_2, class_num=C[k - self.num_classes][j])
+                copies += CustomDataset(subset_2, comp_class_id=C[k - self.num_classes][j])
             dataset = subset_1 + copies
         return dataset
 
