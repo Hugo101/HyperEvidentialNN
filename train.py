@@ -11,15 +11,15 @@ from test import evaluate_vague_nonvague_ENN
 from backbones import EfficientNet_pretrain
 
 #PDML:
-# saved_path_pretrain = "/data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
+# saved_path_teacher = "/data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
 
 #PDML2:
-# saved_path_pretrain = "/home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
+# saved_path_teacher = "/home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
 
-# saved_path_pretrain = "/mnt/data/home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/tiny/pretrain_lre-5/tiny_29_0.8490.pt"
+# saved_path_teacher = "/mnt/data/home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/tiny/pretrain_lre-5/tiny_29_0.8490.pt"
 
 #PDML4:
-# saved_path_pretrain = "/home/cxl173430/Projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
+# saved_path_teacher = "/home/cxl173430/Projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/models_pretrained/tiny_2_0.83.pkl"
 
 def train_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2, epoch_loss_3):
     if expType == 0:
@@ -54,15 +54,15 @@ def train_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2, epoc
             f"{phase} epoch": epoch, f"{phase} loss": loss, 
             f"{phase} loss_1": epoch_loss_1, 
             f"{phase} loss_2_kl": epoch_loss_2,
-            f"{phase} loss_3_kl_pretrain": epoch_loss_3,  
+            f"{phase} loss_3_kl_teacher": epoch_loss_3,  
             f"{phase} acc": acc}, step=epoch)
         print(
             f"{phase.capitalize()} loss: {loss:.4f} \
                 (loss_1: {epoch_loss_1:.4f}, \
                     loss_2_kl:{epoch_loss_2:.4f}) \
-                        loss_3_kl_pretrain:{epoch_loss_3:.4f}) \
+                        loss_3_kl_teacher:{epoch_loss_3:.4f}) \
                     acc: {acc:.4f}")
-    if expType == 4:
+    if expType in [4, 5, 6]:
         wandb.log({
             f"{phase} epoch": epoch, f"{phase} loss": loss, 
             f"{phase} loss_1": epoch_loss_1, 
@@ -72,6 +72,20 @@ def train_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2, epoc
             f"{phase.capitalize()} loss: {loss:.4f} \
                 (loss_1: {epoch_loss_1:.4f}, \
                     loss_2_entropy:{epoch_loss_2:.4f}) \
+                    acc: {acc:.4f}")
+
+    if expType == 7:
+        wandb.log({
+            f"{phase} epoch": epoch, f"{phase} loss": loss, 
+            f"{phase} loss_1": epoch_loss_1, 
+            f"{phase} loss_2_ce": epoch_loss_2,
+            f"{phase} loss_3_entropy": epoch_loss_3,  
+            f"{phase} acc": acc}, step=epoch)
+        print(
+            f"{phase.capitalize()} loss: {loss:.4f} \
+                (loss_1: {epoch_loss_1:.4f}, \
+                    loss_2_ce:{epoch_loss_2:.4f}) \
+                        loss_3_entropy:{epoch_loss_3:.4f}) \
                     acc: {acc:.4f}")
 
 
@@ -86,13 +100,14 @@ def train_model(
     uncertainty=False,
     kl_reg=True,
     kl_lam=0.001,
-    kl_reg_pretrain=False,
-    kl_lam_pretrain=0.001,
+    kl_reg_teacher=False,
+    kl_lam_teacher=0.001,
+    forward_kl_teacher=True,
+    saved_path_teacher=None,
     entropy_reg=False,
     entropy_lam=0.001,
-    forward_kl_pretrain=True,
+    ce_lam=1,
     exp_type=0,
-    saved_path_pretrain=None,
     device=None,
     logdir="./runs"
 ):
@@ -102,7 +117,7 @@ def train_model(
     
     if exp_type == 3:
         pretrainedModel = EfficientNet_pretrain(num_classes)
-        checkpoint = torch.load(saved_path_pretrain, map_location=device)
+        checkpoint = torch.load(saved_path_teacher, map_location=device)
         # pretrainedModel.load_state_dict(checkpoint["model_state_dict"])
         pretrainedModel.load_state_dict(checkpoint["model_state_dict_best"])
         pretrainedModel.eval()
@@ -158,26 +173,39 @@ def train_model(
                         if exp_type == 2: #expected_CE + KL + CE
                             loss, loss_first, loss_second, loss_third = criterion(
                                 outputs, y.float(), epoch, num_classes, 
-                                None, kl_lam, None, None, None, None,
+                                None, kl_lam, None, None, ce_lam, None, None,
                                 kl_reg=kl_reg,
                                 exp_type=exp_type, 
                                 device=device)
-                        if exp_type == 3: #expected_CE + KL + KL_pretrain
+                        if exp_type == 3: #expected_CE + KL + KL_teacher
                             with torch.no_grad():
                                 logits = pretrainedModel(inputs)
                                 pretrainedProb = F.softmax(logits, dim=1)
                             loss, loss_first, loss_second, loss_third = criterion(
                                 outputs, y.float(), epoch, num_classes, 
-                                None, kl_lam, kl_lam_pretrain, None, 
-                                pretrainedProb, forward_kl_pretrain,
-                                kl_reg=kl_reg, kl_reg_pretrain=kl_reg_pretrain,
+                                None, kl_lam, kl_lam_teacher, None, None,
+                                pretrainedProb, forward_kl_teacher,
+                                kl_reg=kl_reg, kl_reg_teacher=kl_reg_teacher,
                                 exp_type=exp_type,
                                 device=device)
-                            pass 
-                        if exp_type == 4: #expected_CE + Entropy
+                        if exp_type in [4,5]: #expected_CE - Entropy
                             loss, loss_first, loss_second = criterion(
                                 outputs, y.float(), epoch, num_classes, 
-                                None, 0, None, entropy_lam, None, None,
+                                None, 0, None, entropy_lam, ce_lam, None, None,
+                                kl_reg=kl_reg, entropy_reg=entropy_reg,
+                                exp_type=exp_type,
+                                device=device)
+                        if exp_type == 6: # CE
+                            loss, loss_first, loss_second = criterion(
+                                outputs, y.float(), epoch, num_classes, 
+                                None, 0, None, entropy_lam, ce_lam, None, None,
+                                kl_reg=kl_reg, entropy_reg=entropy_reg,
+                                exp_type=exp_type,
+                                device=device)
+                        if exp_type == 7: #expected_CE + CE - Entropy
+                            loss, loss_first, loss_second, loss_third = criterion(
+                                outputs, y.float(), epoch, num_classes, 
+                                None, 0, None, entropy_lam, ce_lam, None, None,
                                 kl_reg=kl_reg, entropy_reg=entropy_reg,
                                 exp_type=exp_type,
                                 device=device)
@@ -196,10 +224,10 @@ def train_model(
                 running_loss += loss.item() * batch_size
                 running_corrects += torch.sum(preds == labels.data)
                 
-                if exp_type in [1, 4]:
+                if exp_type in [1, 4, 5, 6]:
                     running_loss_1 += loss_first * batch_size
                     running_loss_2 += loss_second * batch_size
-                if exp_type in [2, 3]:
+                if exp_type in [2, 3, 7]:
                     running_loss_1 += loss_first * batch_size
                     running_loss_2 += loss_second * batch_size
                     running_loss_3 += loss_third * batch_size
@@ -213,10 +241,10 @@ def train_model(
             epoch_acc = running_corrects.double() / len(dataloader.dataset)
             epoch_acc = epoch_acc.detach().cpu().item()
 
-            if exp_type in [1, 4]:
+            if exp_type in [1, 4, 5, 6]:
                 epoch_loss_1 = running_loss_1 / len(dataloader.dataset)
                 epoch_loss_2 = running_loss_2 / len(dataloader.dataset)
-            if exp_type in [2, 3]:
+            if exp_type in [2, 3, 7]:
                 epoch_loss_1 = running_loss_1 / len(dataloader.dataset)
                 epoch_loss_2 = running_loss_2 / len(dataloader.dataset)
                 epoch_loss_3 = running_loss_3 / len(dataloader.dataset)

@@ -95,11 +95,11 @@ def edl_loss(
 def edl_mse_loss(
     output, target, epoch_num, num_classes, 
     annealing_step, kl_lam, 
-    kl_lam_pretrain, 
+    kl_lam_teacher, 
     entropy_lam, 
     anneal=False, 
     kl_reg=True,
-    kl_reg_pretrain=False,
+    kl_reg_teacher=False,
     entropy_reg=False, 
     device=None):
     if not device:
@@ -154,15 +154,16 @@ def edl_log_loss(
 
 # Expected Cross Entropy 
 def edl_digamma_loss(
-    output, target, epoch_num, num_classes, 
+    output, target, epoch_num, num_classes,
     annealing_step, kl_lam,
-    kl_lam_pretrain, 
-    entropy_lam, 
+    kl_lam_teacher,
+    entropy_lam,
+    ce_lam,
     pretrainedProb,
     forward,
-    anneal=False, 
+    anneal=False,
     kl_reg=True,
-    kl_reg_pretrain=False,
+    kl_reg_teacher=False,
     entropy_reg=False,
     exp_type=2,
     device=None
@@ -195,27 +196,42 @@ def edl_digamma_loss(
     # Cross Entropy calculated based on expected class probabilities
     if exp_type == 2:
         ce = nll(alpha, target)
-        loss = ll_mean + kl_div + ce
-        return loss, ll_mean.detach().cpu().item(), kl_div.detach().cpu().item(), ce.detach().cpu().item() 
+        loss = ll_mean + kl_div + ce_lam*ce
+        return loss, ll_mean.detach().cpu().item(), kl_mean.detach().cpu().item(), ce.detach().cpu().item() 
     
     #  KL divergence between 
     # expected class probabilities and 
     # the class probabilities predicted by detNN 
     if exp_type == 3:
-        kl = KL_expectedProbSL_pretrainedProb(alpha, pretrainedProb, forward=forward)
-        loss = ll_mean + kl_div + kl_lam_pretrain * kl
-        return loss, ll_mean.detach().cpu().item(), kl_div.detach().cpu().item(), kl.detach().cpu().item()
+        kl = KL_expectedProbSL_teacherProb(alpha, pretrainedProb, forward=forward)
+        loss = ll_mean + kl_div + kl_lam_teacher * kl
+        return loss, ll_mean.detach().cpu().item(), kl_mean.detach().cpu().item(), kl.detach().cpu().item()
     
     # Entropy
     if exp_type == 4:
-        # entropy = entropy_SL(alpha)
+        entropy = entropy_SL(alpha)
+        loss = ll_mean - entropy_lam * entropy
+        return loss, ll_mean.detach().cpu().item(), entropy.detach().cpu().item()
+
+    # Entropy Dirichlet
+    if exp_type == 5:
         entropy = Dirichlet(alpha).entropy().mean()
         loss = ll_mean - entropy_lam * entropy
         return loss, ll_mean.detach().cpu().item(), entropy.detach().cpu().item()
+    
+    if exp_type == 6:
+        ce = nll(alpha, target)
+        return ce, ce.detach().cpu().item(), 0
+    
+    if exp_type == 7:
+        entropy = Dirichlet(alpha).entropy().mean()
+        ce = nll(alpha, target)
+        loss = ll_mean + ce_lam*ce - entropy_lam * entropy
+        return loss, ll_mean.detach().cpu().item(), ce.detach().cpu().item(), entropy.detach().cpu().item()
 ### ### 
 
 
-def KL_expectedProbSL_pretrainedProb(alpha, pretrainedProb, forward=True):
+def KL_expectedProbSL_teacherProb(alpha, pretrainedProb, forward=True):
     S = torch.sum(alpha, dim=1, keepdims=True)
     prob = alpha / S
     if forward:
