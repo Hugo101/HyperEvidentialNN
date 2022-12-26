@@ -269,27 +269,27 @@ class tinyImageNetVague():
             self.R.append(el)
         print(f"Actual label sets\n R: {self.R}")
 
-        train_ds_original, valid_ds_original = train_valid_split(train_ds_original, valid_perc=1-ratio_train, seed=seed)
-        train_ds_original = AddLabelDataset(train_ds_original) #add an aditional label
-        valid_ds_original = AddLabelDataset(valid_ds_original)
-        test_ds_original = AddLabelDataset(test_ds_original)
+        train_split, valid_split = train_valid_split(train_ds_original, valid_perc=1-ratio_train, seed=seed)
+        train_ds_original_n = AddLabelDataset(train_split) #add an aditional label
+        valid_ds_original_n = AddLabelDataset(valid_split)
+        test_ds_original_n = AddLabelDataset(test_ds_original)
 
         train_ds = make_vague_samples(
-            train_ds_original,
+            train_ds_original_n,
             self.num_classes, self.kappa,
             self.vague_classes_ids,
             blur=self.blur,
             gauss_kernel_size=self.gauss_kernel_size,
             data_train=True)
         valid_ds = make_vague_samples(
-            valid_ds_original,
+            valid_ds_original_n,
             self.num_classes, self.kappa,
             self.vague_classes_ids,
             blur=self.blur,
             gauss_kernel_size=self.gauss_kernel_size,
             data_train=False)
         test_ds = make_vague_samples(
-            test_ds_original,
+            test_ds_original_n,
             self.num_classes, self.kappa,
             self.vague_classes_ids,
             blur=self.blur,
