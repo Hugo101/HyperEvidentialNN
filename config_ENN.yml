@@ -2,7 +2,7 @@ dataset: tinyimagenet
 backbone: EfficientNet-b3
 pretrain: True
 blur: True
-blur_sigma: 1
+gauss_kernel_size: 3
 
 num_comp: 25
 
@@ -10,7 +10,7 @@ uncertainty: True
 
 batch_size: 64
 epochs: 50
-init_lr: 0.0001
+init_lr: 0.00001
 milestone1: 100
 milestone2: 150
 

@@ -2,12 +2,12 @@ dataset: tinyimagenet
 backbone: EfficientNet-b3
 pretrain: True
 blur: True
-blur_sigma: 15
+gauss_kernel_size: 3 #3,7,11
 
-num_comp: 1
+num_comp: 15
 #experiment type
 exp_type: 3
-saved_path_pretrain: /data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/tiny_1M_pdml/Teacher/teacher_29_0.8489.pt 
+saved_path_teacher: /data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/tiny_1M_pdml/Teacher/teacher_29_0.8489.pt 
 #for exp3
 
 
@@ -30,9 +30,11 @@ log: False
 kl_reg: True  #KL in the ENN, lambda 1 
 kl_lam: 0.1
 
-kl_reg_pretrain: True  #KL in experiment 3, lambda 2
-kl_lam_pretrain: 0.1
-forward_kl_pretrain: True 
+kl_reg_teacher: True  #KL in experiment 3, lambda 2
+kl_lam_teacher: 0.1
+forward_kl_teacher: True 
 
 entropy_reg: False
 entropy_lam: 0.0
+
+ce_lam: 0

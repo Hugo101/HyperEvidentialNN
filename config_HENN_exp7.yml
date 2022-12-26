@@ -6,7 +6,7 @@ gauss_kernel_size: 3 #3,7,11
 
 num_comp: 15
 #experiment type
-exp_type: 4 # 5
+exp_type: 7
 saved_path_teacher: None #for exp3
 
 train: True
@@ -35,4 +35,4 @@ forward_kl_teacher: True
 entropy_reg: True
 entropy_lam: 1
 
-ce_lam: 0
+ce_lam: 1
