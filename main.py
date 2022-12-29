@@ -12,6 +12,7 @@ import zipfile
 import wandb 
 import copy 
 import torch
+torch.set_num_threads(5)
 from torch import optim, nn
 import torch.nn.functional as F
 
