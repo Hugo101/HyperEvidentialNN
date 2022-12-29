@@ -24,7 +24,7 @@ parser.add_argument(
 #     type=int, help='The index of the gpu used'
 #     )
 parser.add_argument(
-    '--gpu', default=9, 
+    '--gpu', default=5, 
     type=int, help='The index of the gpu used'
     )
 # parser.add_argument(

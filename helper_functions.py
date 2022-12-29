@@ -57,7 +57,7 @@ partition for GDD:
 '''
 
 
-def projection_prob(num_singles, num_comp, R, r):
+def projection_prob(num_singles, num_comp, R, r, device):
     '''
     input: r: output of the model, shape: N*kappa
     return: prob_exp: projected prob, shape: N*num_singles
@@ -70,7 +70,7 @@ def projection_prob(num_singles, num_comp, R, r):
         base_rate[tuple(clas)] = len(clas)/num_singles
 
     # relative base rate matrix
-    relative_comp = torch.zeros(num_singles, num_comp)
+    relative_comp = torch.zeros(num_singles, num_comp).to(device)
 
     for j in range(num_singles):
         for c in range(num_comp):
@@ -81,7 +81,7 @@ def projection_prob(num_singles, num_comp, R, r):
     # print(relative_comp)
 
     # eye matrix
-    relative_singl = torch.eye(num_singles)
+    relative_singl = torch.eye(num_singles).to(device)
     relative_base_rate_mx = torch.cat([relative_singl, relative_comp], dim=1)
     # return relative_base_rate 
     #shape: num_singles * kappa
@@ -91,7 +91,7 @@ def projection_prob(num_singles, num_comp, R, r):
     term1 = torch.mm(relative_base_rate_mx,  r.T)
     
     #base rate for singleton classes
-    ax = torch.ones(1, num_singles)
+    ax = torch.ones(1, num_singles).to(device)
     ax = ax / num_singles
     W = len(R)
     #numerator: num_singles*num_samples, num_singles*1
@@ -132,7 +132,7 @@ def meanGDD(vague_classes_ids, alpha, r, num_single, num_comp, device):
     return p
 
 
-def js_subset(idx, labels_true, labels_pred, R):
+def js_subset(idx, labels_true, labels_pred, R): #todo: CPU
     labels_true_subs = labels_true[idx]
     labels_pred_subs = labels_pred[idx]
     length = len(labels_true_subs)

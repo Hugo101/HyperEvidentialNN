@@ -88,14 +88,14 @@ def evaluate_vague_nonvague_ENN(
         single_labels_GT = single_labels_GT.to(device, non_blocking=True)
         output = model(images)
         preds = output.argmax(dim=1)
-        correct += torch.sum(preds == labels.data)
+        correct += torch.sum(preds == labels)
         outputs_all.append(output)
         labels_all.append(labels)
         true_labels_all.append(single_labels_GT)
         preds_all.append(preds)
 
     outputs_all = torch.cat(outputs_all, dim=0)
-    labels_all = torch.cat(labels_all, dim=0).cpu()
+    labels_all = torch.cat(labels_all, dim=0) #todo !!!!
     true_labels = torch.cat(true_labels_all, dim=0)
     preds_all = torch.cat(preds_all, dim=0)
     acc = correct / len(labels_all)
@@ -125,12 +125,12 @@ def evaluate_vague_nonvague_ENN(
     # Get the predicted prob and labels
     p_exp1 = meanGDD(vague_classes_ids, alpha, outputs_all, num_singles, num_comp, device)
     predicted_labels1 = torch.argmax(p_exp1, dim=1) # 
-    corr_num1 = torch.sum(true_labels.cpu() == predicted_labels1.cpu())
+    corr_num1 = torch.sum(true_labels == predicted_labels1)
     nonvague_acc_meanGDD = corr_num1 / len(true_labels)
 
-    p_exp = projection_prob(num_singles, num_comp, R, outputs_all.cpu())
+    p_exp = projection_prob(num_singles, num_comp, R, outputs_all, device)
     predicted_labels = torch.argmax(p_exp, dim=1) # 
-    pred_corr_or_not = true_labels.cpu() == predicted_labels.cpu()
+    pred_corr_or_not = true_labels.data == predicted_labels.data
     corr_num = torch.sum(pred_corr_or_not)
     nonvague_acc = corr_num / len(true_labels)
 
@@ -288,7 +288,7 @@ def calculate_metrics_ENN(output, labels, R):
     nonvague_total = 0
 
     for i in range(len(labels)):
-        k = labels[i].item()
+        k = labels[i].item() # todo: CPU or GPU?
         predicted_set = set(R[torch.argmax(output[i])])
         Predicteds.append(predicted_set)
 
@@ -297,11 +297,12 @@ def calculate_metrics_ENN(output, labels, R):
         
         intersect = predicted_set.intersection(ground_truth_set)
         union = predicted_set.union(ground_truth_set)
+        rate = len(intersect) / len(union)
         if len(predicted_set) == 1:
-            correct_nonvague += float(len(intersect)) / len(union)
+            correct_nonvague += rate
             nonvague_total += 1
         else:
-            correct_vague += float(len(intersect)) / len(union)
+            correct_vague += rate
             vague_total += 1
     stat_result = [correct_nonvague, correct_vague, nonvague_total, vague_total] #todo check this with calculate_metric
     GT_Pred_res = [GTs, Predicteds]

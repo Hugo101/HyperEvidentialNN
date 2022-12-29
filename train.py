@@ -143,6 +143,7 @@ def train_model(
                 model.eval()  # Set model to evaluate mode
                 dataloader = mydata.valid_loader
 
+            data_loader_size = len(dataloader.dataset)
             running_loss = 0.0
             running_loss_1, running_loss_2, running_loss_3 = 0.0, 0.0, 0.0
             epoch_loss_1,    epoch_loss_2,    epoch_loss_3 = 0.0, 0.0, 0.0
@@ -221,8 +222,8 @@ def train_model(
 
                 # statistics
                 batch_size = inputs.size(0)
-                running_loss += loss.item() * batch_size
-                running_corrects += torch.sum(preds == labels.data)
+                running_loss += loss.detach() * batch_size #todo
+                running_corrects += torch.sum(preds == labels)
                 
                 if exp_type in [1, 4, 5, 6]:
                     running_loss_1 += loss_first * batch_size
@@ -236,18 +237,18 @@ def train_model(
                 if phase == "train":
                     scheduler.step()
 
-            # print(f"##### length of datasets at phase {phase}: {len(dataloader.dataset)}") #pass 
-            epoch_loss = running_loss / len(dataloader.dataset)
-            epoch_acc = running_corrects.double() / len(dataloader.dataset)
-            epoch_acc = epoch_acc.detach().cpu().item()
+            # print(f"##### length of datasets at phase {phase}: {data_loader_size}") #pass 
+            epoch_loss = running_loss / data_loader_size
+            epoch_acc = running_corrects / data_loader_size #todo
+            epoch_acc = epoch_acc.detach()
 
             if exp_type in [1, 4, 5, 6]:
-                epoch_loss_1 = running_loss_1 / len(dataloader.dataset)
-                epoch_loss_2 = running_loss_2 / len(dataloader.dataset)
+                epoch_loss_1 = running_loss_1 / data_loader_size
+                epoch_loss_2 = running_loss_2 / data_loader_size
             if exp_type in [2, 3, 7]:
-                epoch_loss_1 = running_loss_1 / len(dataloader.dataset)
-                epoch_loss_2 = running_loss_2 / len(dataloader.dataset)
-                epoch_loss_3 = running_loss_3 / len(dataloader.dataset)
+                epoch_loss_1 = running_loss_1 / data_loader_size
+                epoch_loss_2 = running_loss_2 / data_loader_size
+                epoch_loss_3 = running_loss_3 / data_loader_size
 
             train_log(exp_type, phase, epoch, epoch_acc, epoch_loss, epoch_loss_1, epoch_loss_2, epoch_loss_3)
             
@@ -268,10 +269,10 @@ def train_model(
                         mydata.num_classes, mydata.num_comp, 
                         mydata.vague_classes_ids, 
                         epoch, device)
-                    state = {
-                        "model_state_dict": model.state_dict(),
-                    }
-                    torch.save(state, f'{logdir}/HENN_{epoch}_{acc:.4f}.pt')
+                    # state = {
+                    #     "model_state_dict": model.state_dict(),
+                    # }
+                    # torch.save(state, f'{logdir}/HENN_{epoch}_{acc:.4f}.pt')
 
         time_epoch = time.time() - begin_epoch
         print(f"Finish the EPOCH in {time_epoch//60:.0f}m {time_epoch%60:.0f}s.")

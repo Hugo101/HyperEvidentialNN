@@ -77,8 +77,8 @@ def edl_loss(
     func, y, alpha, num_classes, 
     kl_reg=True, 
     device=None):
-    y = y.to(device)
-    alpha = alpha.to(device)
+    # y = y.to(device)
+    # alpha = alpha.to(device)
     S = torch.sum(alpha, dim=1, keepdim=True)
     A = torch.sum(y * (func(S) - func(alpha)), dim=1, keepdim=True)
     A_mean = torch.mean(A)
@@ -176,6 +176,7 @@ def edl_digamma_loss(
     evidence = output
     alpha = evidence + 1
 
+    
     ll_mean, kl_mean = edl_loss(
         torch.digamma, target, alpha, num_classes, 
         kl_reg=kl_reg, 
@@ -197,7 +198,7 @@ def edl_digamma_loss(
     if exp_type == 2:
         ce = nll(alpha, target)
         loss = ll_mean + kl_div + ce_lam*ce
-        return loss, ll_mean.detach().cpu().item(), kl_mean.detach().cpu().item(), ce.detach().cpu().item() 
+        return loss, ll_mean.detach(), kl_mean.detach(), ce.detach() 
     
     #  KL divergence between 
     # expected class probabilities and 
@@ -205,29 +206,31 @@ def edl_digamma_loss(
     if exp_type == 3:
         kl = KL_expectedProbSL_teacherProb(alpha, pretrainedProb, forward=forward)
         loss = ll_mean + kl_div + kl_lam_teacher * kl
-        return loss, ll_mean.detach().cpu().item(), kl_mean.detach().cpu().item(), kl.detach().cpu().item()
+        return loss, ll_mean.detach(), kl_mean.detach(), kl.detach()
     
     # Entropy
     if exp_type == 4:
         entropy = entropy_SL(alpha)
         loss = ll_mean - entropy_lam * entropy
-        return loss, ll_mean.detach().cpu().item(), entropy.detach().cpu().item()
+        return loss, ll_mean.detach(), entropy.detach()
 
     # Entropy Dirichlet
     if exp_type == 5:
         entropy = Dirichlet(alpha).entropy().mean()
         loss = ll_mean - entropy_lam * entropy
-        return loss, ll_mean.detach().cpu().item(), entropy.detach().cpu().item()
+        return loss, ll_mean.detach(), entropy.detach()
     
     if exp_type == 6:
         ce = nll(alpha, target)
-        return ce, ce.detach().cpu().item(), 0
+        entropy = Dirichlet(alpha).entropy().mean()
+        loss = ce - entropy_lam * entropy
+        return loss, ce.detach(), entropy.detach()
     
     if exp_type == 7:
         entropy = Dirichlet(alpha).entropy().mean()
         ce = nll(alpha, target)
         loss = ll_mean + ce_lam*ce - entropy_lam * entropy
-        return loss, ll_mean.detach().cpu().item(), ce.detach().cpu().item(), entropy.detach().cpu().item()
+        return loss, ll_mean.detach(), ce.detach(), entropy.detach()
 ### ### 
 
 
