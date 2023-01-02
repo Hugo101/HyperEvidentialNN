@@ -5,6 +5,10 @@ blur: True
 gauss_kernel_size: 3 #3,7,11
 
 num_comp: 15
+num_subclasses: 2 # num of subclasses per superclass for selected vague classes
+
+num_workers: 0
+
 #experiment type
 exp_type: 7
 saved_path_teacher: None #for exp3

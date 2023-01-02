@@ -5,6 +5,10 @@ blur: True
 gauss_kernel_size: 3 #3,7,11
 
 num_comp: 15
+num_subclasses: 2 # num of subclasses per superclass for selected vague classes
+
+num_workers: 0
+
 #experiment type
 exp_type: 3
 saved_path_teacher: /data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/tiny_1M_pdml/Teacher/teacher_29_0.8489.pt 

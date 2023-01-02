@@ -150,7 +150,8 @@ class CIFAR100Vague:
         gauss_kernel_size=3,
         pretrain=True,
         num_workers=4,
-        seed=42):
+        seed=42,
+        comp_el_size=2):
         self.name = "cifar100"
         print("Loading CIFAR100...")
         start_time = time.time()
@@ -160,6 +161,7 @@ class CIFAR100Vague:
         self.batch_size = batch_size
         self.pretrain = pretrain
         self.num_workers = num_workers
+        self.comp_el_size = comp_el_size
         self.img_size = 32
         self.num_classes = 100
         self.num_comp = num_comp
@@ -268,9 +270,8 @@ class CIFAR100Vague:
     def get_vague_classes_v2(self):
         vague_classes = random.sample(self.candidate_superclasses, self.num_comp)
         # vague_classes = ["people"]
-        comp_el_size = 2
         
-        vague_subs_nids = [random.sample(self.parent_to_subclasses[super],comp_el_size) for super in vague_classes]
+        vague_subs_nids = [random.sample(self.parent_to_subclasses[super], self.comp_el_size) for super in vague_classes]
         # vague_subs_nids = [['baby', 'woman']]
         vague_subs_ids = [[self.class_to_idx[sub] for sub in super] for super in vague_subs_nids]
 

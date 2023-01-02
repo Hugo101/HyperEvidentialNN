@@ -5,6 +5,9 @@ blur: True
 gauss_kernel_size: 3
 
 num_comp: 25
+num_subclasses: 2 # num of subclasses per superclass for selected vague classes
+
+num_workers: 0
 
 batch_size: 64
 epochs: 30

@@ -12,7 +12,7 @@ import zipfile
 import wandb 
 import copy 
 import torch
-torch.set_num_threads(5)
+torch.set_num_threads(4)
 from torch import optim, nn
 import torch.nn.functional as F
 
@@ -26,29 +26,6 @@ from train import train_model
 from test import evaluate_vague_nonvague_ENN, evaluate_nonvague_HENN_final
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 
-
-args = parser.parse_args()
-# process argparse & yaml
-# if  args.config:
-opt = vars(args)
-
-# build the path to save model and results
-create_path(args.output_folder) 
-base_path = os.path.join(args.output_folder, args.saved_spec_dir)
-create_path(base_path)
-
-config_file = os.path.join(base_path, "config.yml")
-config = yaml.load(open(config_file), Loader=yaml.FullLoader)
-opt.update(config)
-
-# else:  # yaml priority is higher than args
-#     opt = yaml.load(open(args.config), Loader=yaml.FullLoader)
-#     opt.update(vars(args))
-#     args = argparse.Namespace(**opt)
-
-# convert args from Dict to Object
-args = dictToObj(opt)
-device = set_device(args.gpu)
 
 def make(args):
     mydata = None
@@ -90,7 +67,9 @@ def make(args):
             blur=args.blur,
             gauss_kernel_size=args.gauss_kernel_size,
             pretrain=args.pretrain,
-            seed=args.seed
+            num_workers=args.num_workers,
+            seed=args.seed,
+            comp_el_size=args.num_subclasses,
             )
         num_singles = mydata.num_classes
         num_comps = mydata.num_comp
@@ -105,7 +84,7 @@ def make(args):
         else:
             print(f"### ERROR {args.dataset}: The backbone {args.backbone} is invalid!")
 
-    model = model.to(device)
+    model = model.to(args.device)
 
     if use_uncertainty:
         if args.digamma:
@@ -132,11 +111,11 @@ def make(args):
     return mydata, num_singles, num_comps, model, criterion, optimizer, scheduler
 
 
-def main():
+def main(args):
     print(f"Model: Train:{args.train}, Test: {args.test}")
     print('Random Seed: {}'.format(args.seed))
     set_random_seeds(args.seed)
-
+    device = args.device
     mydata, num_singles, num_comps, model, criterion, optimizer, scheduler = make(args)
     num_classes = num_singles + num_comps
     print("Total number of classes to train: ", num_classes)
@@ -237,22 +216,31 @@ def main():
 
 
 if __name__ == "__main__":
+    args = parser.parse_args()
+    # process argparse & yaml
+    # if  args.config:
+    opt = vars(args)
+
+    # build the path to save model and results
+    create_path(args.output_folder) 
+    base_path = os.path.join(args.output_folder, args.saved_spec_dir)
+    create_path(base_path)
+
+    config_file = os.path.join(base_path, "config.yml")
+    config = yaml.load(open(config_file), Loader=yaml.FullLoader)
+    opt.update(config)
+
+    # else:  # yaml priority is higher than args
+    #     opt = yaml.load(open(args.config), Loader=yaml.FullLoader)
+    #     opt.update(vars(args))
+    #     args = argparse.Namespace(**opt)
+
+    # convert args from Dict to Object
+    args = dictToObj(opt)
+    args.device = set_device(args.gpu)
+
     # tell wandb to get started
     print(config)
     with wandb.init(project=f"{config['dataset']}-{config['num_comp']}M-HENN", config=config):
         config = wandb.config
-        main()
-
-
-    # results = evaluate_vague_nonvague(model, test_dl)
-
-    # draw_roc(model, test_dl)
-
-    # avg_js_vague = results[0] / results[2]
-    # print(f"Average Jaccard Similarity Vague Classes:{avg_js_vague}")
-
-    # avg_js_nonvague = results[1] / results[3]
-    # print(f"Average Jaccard Similarity Nonvague Classes:{avg_js_nonvague}")
-
-    # overall_acc = (results[0] + results[1])/(results[2] + results[3])
-    # print(f"Overall Accuracy: {overall_acc}")
+        main(args)

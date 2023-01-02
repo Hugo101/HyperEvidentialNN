@@ -5,6 +5,9 @@ blur: True
 blur_sigma: 1
 
 num_comp: 15
+num_subclasses: 2 # num of subclasses per superclass for selected vague classes
+
+num_workers: 0
 
 epochs: 60
 init_lr: 0.00001
