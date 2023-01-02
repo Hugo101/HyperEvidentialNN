@@ -18,33 +18,6 @@ from data.cifar100 import CIFAR100Vague
 from backbones import EfficientNet_pretrain, ResNet50
 from helper_functions import js_subset, acc_subset
 
-args = parser.parse_args()
-opt = vars(args)
-# build the path to save model and results
-create_path(args.output_folder) 
-base_path = os.path.join(args.output_folder, args.saved_spec_dir)
-create_path(base_path)
-
-config_file = os.path.join(base_path, "config.yml")
-config = yaml.load(open(config_file), Loader=yaml.FullLoader)
-opt.update(config)
-args = opt
-
-# config = {
-#     "dataset": "tinyimagenet",
-#     "backbone": "EfficientNet-b3",
-#     "epochs": 1,
-#     "init_lr": 0.0001,
-#     "train": True,
-#     "test": True,
-#     "nonVaguePred": True,
-#     "vaguePred": True,
-# }
-
-# base_path = "HyperEvidentialNN/models_baseline_DetNN"
-# convert args from Dict to Object
-args = dictToObj(args)
-device = set_device(args.gpu)
 
 def train_log(phase, epoch, accDup, accGT, loss):
     wandb.log({
@@ -53,6 +26,7 @@ def train_log(phase, epoch, accDup, accGT, loss):
         f"{phase} accDup": accDup, 
         f"{phase} accGT": accGT}, step=epoch)
     print(f"{phase.capitalize()} loss: {loss:.4f} accDup: {accDup:.4f} accGT: {accGT:.4f}")
+
 
 def train_DetNN(
     model,
@@ -416,6 +390,7 @@ def make(args):
     num_comps = 0
     milestone1 = args.milestone1
     milestone2 = args.milestone2
+    device = args.device
     
     if args.dataset == "tinyimagenet":
         mydata = tinyImageNetVague(
@@ -461,9 +436,9 @@ def make(args):
     return mydata, model, criterion, optimizer, scheduler
 
 
-def main():
+def main(args):
     set_random_seeds(args.seed)
-
+    device = args.device
     mydata, model, criterion, optimizer, scheduler = make(args)
     num_singles = mydata.num_classes
     
@@ -517,8 +492,24 @@ def main():
 
 
 if __name__ == "__main__":
+    args = parser.parse_args()
+    opt = vars(args)
+    # build the path to save model and results
+    create_path(args.output_folder) 
+    base_path = os.path.join(args.output_folder, args.saved_spec_dir)
+    create_path(base_path)
+
+    config_file = os.path.join(base_path, "config.yml")
+    config = yaml.load(open(config_file), Loader=yaml.FullLoader)
+    opt.update(config)
+    args = opt
+
+    # convert args from Dict to Object
+    args = dictToObj(args)
+    args.device = set_device(args.gpu)
+
     # tell wandb to get started
     print(config)
     with wandb.init(project=f"{config['dataset']}-{config['num_comp']}M-DNN", config=config):
         config = wandb.config
-        main()
+        main(args)

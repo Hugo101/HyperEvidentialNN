@@ -18,34 +18,6 @@ from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 from baseline_DetNN import evaluate_vague_nonvague_final
 
 
-args = parser.parse_args()
-opt = vars(args)
-# build the path to save model and results
-create_path(args.output_folder) 
-base_path = os.path.join(args.output_folder, args.saved_spec_dir)
-create_path(base_path)
-
-config_file = os.path.join(base_path, "config.yml")
-config = yaml.load(open(config_file), Loader=yaml.FullLoader)
-opt.update(config)
-args = opt
-
-# config = {
-#     "dataset": "tinyimagenet",
-#     "backbone": "EfficientNet-b3",
-#     "uncertainty": True,
-#     "epochs": 1,
-#     "init_lr": 0.0001,
-#     "train": False,
-#     "test": True,
-#     "nonVaguePred": True,
-#     "vaguePred": True,
-# }
-
-# convert args from Dict to Object
-args = dictToObj(args)
-device = set_device(args.gpu)
-
 def train_log(phase, epoch, accDup, accGT, loss):
     wandb.log({
         f"{phase} epoch": epoch, 
@@ -55,7 +27,7 @@ def train_log(phase, epoch, accDup, accGT, loss):
     print(f"{phase.capitalize()} loss: {loss:.4f} accDup: {accDup:.4f} accGT: {accGT:.4f}")
 
 
-def validate(model, dataloader, criterion, K, epoch):
+def validate(model, dataloader, criterion, K, epoch, device):
     print("Validating...")
     model.eval()  # Set model to evaluate mode
     running_loss = 0.0
@@ -159,7 +131,7 @@ def train_ENN(
         #validation
         acc_GT_val, loss_val = validate(
             model, mydata.valid_loader, criterion,
-            K, epoch)
+            K, epoch, device)
         train_log("valid", epoch, 0, acc_GT_val, loss_val)
         
         if acc_GT_val > best_acc:
@@ -192,6 +164,7 @@ def make(args):
     use_uncertainty = args.uncertainty
     milestone1 = args.milestone1
     milestone2 = args.milestone2
+    device = args.device
     
     if args.dataset == "tinyimagenet":
         mydata = tinyImageNetVague(
@@ -263,9 +236,10 @@ def make(args):
     return mydata, model, criterion, optimizer, scheduler
 
 
-def main():
+def main(args):
     set_random_seeds(args.seed)
-
+    device = args.device
+    
     mydata, model, criterion, optimizer, scheduler = make(args)
     num_singles = mydata.num_classes
 
@@ -331,8 +305,24 @@ def main():
 
 
 if __name__ == "__main__":
+    args = parser.parse_args()
+    opt = vars(args)
+    # build the path to save model and results
+    create_path(args.output_folder) 
+    base_path = os.path.join(args.output_folder, args.saved_spec_dir)
+    create_path(base_path)
+
+    config_file = os.path.join(base_path, "config.yml")
+    config = yaml.load(open(config_file), Loader=yaml.FullLoader)
+    opt.update(config)
+    args = opt
+
+    # convert args from Dict to Object
+    args = dictToObj(args)
+    args.device = set_device(args.gpu)
+
     # tell wandb to get started
     print(config)
     with wandb.init(project=f"{config['dataset']}-{config['num_comp']}M-ENN", config=config):
         config = wandb.config
-        main()
+        main(args)

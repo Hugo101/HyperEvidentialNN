@@ -16,28 +16,6 @@ from helper_functions import js_subset, acc_subset
 from test import calculate_metrics_ENN, precision_recall_f_v1
 
 
-args = parser.parse_args()
-opt = vars(args)
-# build the path to save model and results
-create_path(args.output_folder) 
-base_path = os.path.join(args.output_folder, args.saved_spec_dir)
-create_path(base_path)
-
-config_file = os.path.join(base_path, "config.yml")
-config = yaml.load(open(config_file), Loader=yaml.FullLoader)
-opt.update(config)
-
-# config = {
-#     "dataset": "tinyimagenet",
-#     "backbone": "EfficientNet-b3",
-#     "epochs": 3,
-#     "init_lr": 0.0001,
-# }
-
-# convert args from Dict to Object
-args = dictToObj(opt)
-device = set_device(args.gpu)
-
 def train_log(phase, epoch, acc, loss):
     wandb.log({
         f"{phase} epoch": epoch, 
@@ -132,7 +110,7 @@ def train_teacher(
                 best_model_wts = copy.deepcopy(model.state_dict()) # deep copy the model
             if phase == "val":
                 if epoch == 0 or ((epoch+1) % 1 ==0):
-                    acc = evaluate_teacher(model, mydata.test_loader, num_singles, mydata.R, criterion, epoch)
+                    acc = evaluate_teacher(model, mydata.test_loader, num_singles, mydata.R, criterion, epoch, device)
                     state = {
                         "model_state_dict": model.state_dict(),
                     }
@@ -163,6 +141,7 @@ def evaluate_teacher(
     R,
     criterion,
     epoch,
+    device,
     bestModel=False,
     ):
     model.eval()
@@ -259,6 +238,7 @@ def make(args):
     num_classes_both = 0 
     milestone1 = args.milestone1
     milestone2 = args.milestone2
+    device = args.device
     
     if args.dataset == "tinyimagenet":
         mydata = tinyImageNetVague(
@@ -307,10 +287,10 @@ def make(args):
     return mydata, model, criterion, optimizer, scheduler
 
 
-def main():
-    print('Random Seed: {}'.format(args.seed))
+def main(args):
     set_random_seeds(args.seed)
-
+    device = args.device
+    
     mydata, model, criterion, optimizer, scheduler = make(args)
     num_singles = mydata.num_classes
     if args.train:
@@ -349,15 +329,30 @@ def main():
 
         # model after the final epoch
         print(f"\n### Evaluate the model after all epochs:")
-        evaluate_teacher(model, test_loader, num_singles, mydata.R, criterion, None, bestModel=False)
+        evaluate_teacher(model, test_loader, num_singles, mydata.R, criterion, None, device, bestModel=False)
 
         # print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
         # evaluate_teacher(model_best_from_valid, test_loader, num_singles, mydata.R, criterion, None, bestModel=True)
 
 
 if __name__ == "__main__":
+    args = parser.parse_args()
+    opt = vars(args)
+    # build the path to save model and results
+    create_path(args.output_folder) 
+    base_path = os.path.join(args.output_folder, args.saved_spec_dir)
+    create_path(base_path)
+
+    config_file = os.path.join(base_path, "config.yml")
+    config = yaml.load(open(config_file), Loader=yaml.FullLoader)
+    opt.update(config)
+
+    # convert args from Dict to Object
+    args = dictToObj(opt)
+    args.device = set_device(args.gpu)
+
     # tell wandb to get started
     print(config)
     with wandb.init(project=f"{config['dataset']}-{config['num_comp']}M-Teacher", config=config):
         config = wandb.config
-        main()
+        main(args)

@@ -114,7 +114,6 @@ def make(args):
 
 def main(args):
     print(f"Model: Train:{args.train}, Test: {args.test}")
-    print('Random Seed: {}'.format(args.seed))
     set_random_seeds(args.seed)
     device = args.device
     mydata, num_singles, num_comps, model, criterion, optimizer, scheduler = make(args)
