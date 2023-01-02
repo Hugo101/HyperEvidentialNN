@@ -214,7 +214,10 @@ def make(args):
             blur=args.blur,
             gauss_kernel_size=args.gauss_kernel_size,
             pretrain=args.pretrain,
-            seed=args.seed)
+            num_workers=args.num_workers,
+            seed=args.seed,
+            comp_el_size=args.num_subclasses,
+            )
 
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp

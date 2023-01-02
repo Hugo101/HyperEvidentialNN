@@ -279,7 +279,11 @@ def make(args):
             batch_size=args.batch_size,
             duplicate=False,
             blur=args.blur,
-            blur_sigma=args.blur_sigma,
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            comp_el_size=args.num_subclasses,
             )
 
     num_singles = mydata.num_classes
