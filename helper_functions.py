@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset, Dataset
 import matplotlib.pyplot as plt
 from sklearn import metrics
+from copy import deepcopy
 
 def one_hot_embedding(labels, num_classes=10, device='cpu'):
     # Convert to One Hot Encoding
@@ -14,7 +15,7 @@ class AddLabelDataset(Dataset):
         self.dataset = dataset
 
     def __getitem__(self, index):
-        x, y = self.dataset[index]
+        x, y = deepcopy(self.dataset[index])
         return x, y, y
 
     def __len__(self):
@@ -28,7 +29,7 @@ class CustomDataset(Dataset):
         self.comp_class_id = comp_class_id
         
     def __getitem__(self, index):
-        x, y_truth_single, y = self.dataset[index]
+        x, y_truth_single, y = deepcopy(self.dataset[index])
         if self.transform:
             x = self.transform(x)
         if self.comp_class_id:
