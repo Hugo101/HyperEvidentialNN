@@ -427,6 +427,7 @@ def make(args):
             blur=args.blur,
             gauss_kernel_size=args.gauss_kernel_size,
             pretrain=args.pretrain,
+            num_workers=args.num_workers,
             seed=args.seed)
     elif args.dataset == "cifar100":
         mydata = CIFAR100Vague(

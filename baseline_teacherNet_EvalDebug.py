@@ -268,8 +268,10 @@ def make(args):
             imagenet_hierarchy_path=args.data_dir,
             duplicate=False,
             blur=args.blur,
-            blur_sigma=args.blur_sigma,
-            pretrain=args.pretrain
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
             )
 
     elif args.dataset == "cifar100":

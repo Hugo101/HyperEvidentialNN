@@ -17,12 +17,12 @@ import time
 from sklearn.model_selection import train_test_split
 
 
-def create_val_folder(root_dir):
+def create_val_folder(data_dir):
     """
     This method is responsible for separating validation images into separate sub folders
     """
-    path = os.path.join(root_dir, 'tiny-imagenet-200/val/images')  # path where validation data is present now
-    filename = os.path.join(root_dir, 'tiny-imagenet-200/val/val_annotations.txt')  # file where image2class mapping is present
+    path = os.path.join(data_dir, 'tiny-imagenet-200/val/images')  # path where validation data is present now
+    filename = os.path.join(data_dir, 'tiny-imagenet-200/val/val_annotations.txt')  # file where image2class mapping is present
     fp = open(filename, "r")  # open file in read mode
     data = fp.readlines()  # read line by line
 
@@ -44,7 +44,7 @@ def create_val_folder(root_dir):
 
 
 class TinyImagenet():
-    def __init__(self, root_dir, batch_size=128, augment=True):
+    def __init__(self, data_dir, batch_size=128, augment=True):
         self.name = "tinyimagenet"
         print('Loading TinyImageNet...')
         self.batch_size = batch_size
@@ -56,8 +56,8 @@ class TinyImagenet():
         self.num_train = int(num_train * ratio_train)
         self.num_val = num_train - self.num_train
         
-        train_dir = os.path.join(root_dir, 'tiny-imagenet-200/train')
-        valid_dir = os.path.join(root_dir, 'tiny-imagenet-200/val/images')
+        train_dir = os.path.join(data_dir, 'tiny-imagenet-200/train')
+        valid_dir = os.path.join(data_dir, 'tiny-imagenet-200/val/images')
 
         normalize = transforms.Normalize(mean=[0.4802, 0.4481, 0.3975], 
                                          std =[0.2302, 0.2265, 0.2262])
@@ -204,7 +204,7 @@ def make_vague_samples(
 class tinyImageNetVague():
     def __init__(
         self, 
-        root_dir, 
+        data_dir, 
         num_comp=1, 
         batch_size=128, 
         ratio_train=0.9, 
@@ -233,8 +233,8 @@ class tinyImageNetVague():
         self.num_val = num_train - self.num_train
         self.num_test = 10000
 
-        train_dir = os.path.join(root_dir, 'tiny-imagenet-200/train')
-        val_img_dir = os.path.join(root_dir, 'tiny-imagenet-200/val/images')
+        train_dir = os.path.join(data_dir, 'tiny-imagenet-200/train')
+        val_img_dir = os.path.join(data_dir, 'tiny-imagenet-200/val/images')
         train_ds_original = datasets.ImageFolder(train_dir)
         test_ds_original = datasets.ImageFolder(val_img_dir)
         self.class_to_idx = train_ds_original.class_to_idx
