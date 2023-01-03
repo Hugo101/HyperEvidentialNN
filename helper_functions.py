@@ -6,7 +6,7 @@ from copy import deepcopy
 
 def one_hot_embedding(labels, num_classes=10, device='cpu'):
     # Convert to One Hot Encoding
-    y = torch.eye(num_classes).to(device)
+    y = torch.eye(num_classes, device=device)
     return y[labels]
 
 
@@ -71,7 +71,7 @@ def projection_prob(num_singles, num_comp, R, r, device):
         base_rate[tuple(clas)] = len(clas)/num_singles
 
     # relative base rate matrix
-    relative_comp = torch.zeros(num_singles, num_comp).to(device)
+    relative_comp = torch.zeros(num_singles, num_comp, device=device)
 
     for j in range(num_singles):
         for c in range(num_comp):
@@ -82,7 +82,7 @@ def projection_prob(num_singles, num_comp, R, r, device):
     # print(relative_comp)
 
     # eye matrix
-    relative_singl = torch.eye(num_singles).to(device)
+    relative_singl = torch.eye(num_singles, device=device)
     relative_base_rate_mx = torch.cat([relative_singl, relative_comp], dim=1)
     # return relative_base_rate 
     #shape: num_singles * kappa
@@ -92,7 +92,7 @@ def projection_prob(num_singles, num_comp, R, r, device):
     term1 = torch.mm(relative_base_rate_mx,  r.T)
     
     #base rate for singleton classes
-    ax = torch.ones(1, num_singles).to(device)
+    ax = torch.ones(1, num_singles, device=device)
     ax = ax / num_singles
     W = len(R)
     #numerator: num_singles*num_samples, num_singles*1
@@ -107,18 +107,18 @@ def meanGDD(vague_classes_ids, alpha, r, num_single, num_comp, device):
     # Probably from page 102 in the book 
     num_partitions = len(partitions)
 
-    beta = torch.zeros(len(alpha), num_partitions).to(device)
+    beta = torch.zeros(len(alpha), num_partitions, device=device)
 
-    alpha_sum = torch.zeros(len(alpha), num_comp).to(device)
+    alpha_sum = torch.zeros(len(alpha), num_comp, device=device)
 
     for l in range(num_comp):
-        alpha_sum[:, l] = torch.sum(torch.index_select(alpha, 1, torch.tensor(partitions[l]).to(device)), dim = 1)
+        alpha_sum[:, l] = torch.sum(torch.index_select(alpha, 1, torch.tensor(partitions[l], device=device)), dim = 1)
         beta[:, l] = alpha_sum[:, l] + r[:, num_single + l]
 
     if num_partitions > num_comp:
-        beta[:, num_comp] = torch.sum(torch.index_select(alpha, 1, torch.tensor(partitions[num_comp]).to(device)), dim = 1)
+        beta[:, num_comp] = torch.sum(torch.index_select(alpha, 1, torch.tensor(partitions[num_comp], device=device)), dim = 1)
 
-    p = torch.zeros(len(alpha), num_single).to(device)
+    p = torch.zeros(len(alpha), num_single, device=device)
 
     beta_sum = torch.sum(beta, dim=1)
 
@@ -180,12 +180,12 @@ def numAccurate(r, labels, num_single, W, R, a):
 
 # todo 
 def vague_belief_mass(b, K, C, R, a_copy, device):
-    b_v = torch.zeros(len(b), K).to(device)
-    sum_beliefs = torch.zeros(len(b), K).to(device)
+    b_v = torch.zeros(len(b), K, device=device)
+    sum_beliefs = torch.zeros(len(b), K, device=device)
 
     for k in range(K):
         for l in range(len(C)):
-            relative_base_rate = torch.zeros(1).to(device)
+            relative_base_rate = torch.zeros(1, device=device)
             intersection_set = set(R[k]).intersection(set(C[l]))
             if len(intersection_set) > 0:
                 relative_base_rate = a_copy[R.index(list(intersection_set))] / a_copy[K + l]
@@ -229,5 +229,5 @@ def vague_belief_mass(b, K, C, R, a_copy, device):
 #         else:
 #             correct_vague += rate 
 #             vague_total += 1
-      
+
 #     return [correct_nonvague, correct_vague, nonvague_total, vague_total]

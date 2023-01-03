@@ -42,8 +42,8 @@ def kl_divergence(alpha, num_classes, device=None):
 def loglikelihood_loss(y, alpha, device=None):
     if not device:
         device = set_device()
-    y = y.to(device)
-    alpha = alpha.to(device)
+    # y = y.to(device)
+    # alpha = alpha.to(device)
     S = torch.sum(alpha, dim=1, keepdim=True)
     loglikelihood_err = torch.sum((y - (alpha / S)) ** 2, dim=1, keepdim=True)
     loglikelihood_var = torch.sum(
@@ -59,8 +59,8 @@ def mse_loss(
     device=None):
     if not device:
         device = set_device()
-    y = y.to(device)
-    alpha = alpha.to(device)
+    # y = y.to(device)
+    # alpha = alpha.to(device)
     loglikelihood = loglikelihood_loss(y, alpha, device=device)
     ll_mean = torch.mean(loglikelihood)
     
@@ -116,7 +116,7 @@ def edl_mse_loss(
         )
 
     if not kl_reg:
-        return ll_mean, ll_mean.detach().cpu().item(), 0
+        return ll_mean, ll_mean.detach(), 0
     
     if anneal:
         annealing_coef = torch.min(
@@ -128,7 +128,7 @@ def edl_mse_loss(
         kl_div = kl_lam * kl_mean
 
     loss = ll_mean + kl_div
-    return loss, ll_mean.detach().cpu().item(), kl_mean.detach().cpu().item()
+    return loss, ll_mean.detach(), kl_mean.detach()
 
 
 def edl_log_loss(
@@ -185,8 +185,8 @@ def edl_digamma_loss(
 
     if anneal:
         annealing_coef = torch.min(
-            torch.tensor(1.0, dtype=torch.float32),
-            torch.tensor(epoch_num / annealing_step, dtype=torch.float32),
+            torch.tensor(1.0, dtype=torch.float32, device=device),
+            torch.tensor(epoch_num / annealing_step, dtype=torch.float32, device=device),
         )
         kl_div = annealing_coef * kl_mean
     else:
@@ -269,7 +269,7 @@ def squaredLoss(alpha, one_hot_vectors, device):
     num_samples = len(alpha)
 
     losses_term_1 = (one_hot_vectors - p_exp)**2
-    losses_term_2 = (p_exp * (torch.ones(num_samples, num_classes).to(device) - p_exp) / ((alpha_sum + 1.0)[:, None]))                   
+    losses_term_2 = (p_exp * (torch.ones(num_samples, num_classes, device=device) - p_exp) / ((alpha_sum + 1.0)[:, None]))
 
     losses = torch.sum(losses_term_1 + losses_term_2, dim=1)
 
@@ -279,7 +279,7 @@ def squaredLoss(alpha, one_hot_vectors, device):
 # did not use this 
 def KL(alpha, device):
     num_classes = alpha.size(dim=1)
-    beta = torch.ones(1, num_classes).to(device)
+    beta = torch.ones(1, num_classes, device=device)
     S_beta = torch.sum(beta)
     S_alpha = torch.sum(alpha, dim=1) 
     lnB = torch.lgamma(S_alpha) - torch.sum(torch.lgamma(alpha),dim=1)
