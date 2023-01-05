@@ -66,7 +66,7 @@ def acc_subset(idx, labels_true, labels_pred):
 
 
 @torch.no_grad()
-def evaluate_vague_nonvague_ENN(
+def evaluate_vague_nonvague(
     model, 
     val_loader, 
     R, 

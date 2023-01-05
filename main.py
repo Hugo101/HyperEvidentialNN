@@ -23,7 +23,7 @@ from data.cifar100 import CIFAR100Vague
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16
 # from backbones import EfficientNet_pretrain, ResNet50
 from train import train_model
-from test import evaluate_vague_nonvague_ENN, evaluate_nonvague_HENN_final
+from test import evaluate_vague_nonvague
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 
 
@@ -109,14 +109,16 @@ def make(args):
     # if args.pretrain:
         # exp_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50], gamma=0.1)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[milestone1, milestone2], gamma=0.1)
-    return mydata, num_singles, num_comps, model, criterion, optimizer, scheduler
+    return mydata, model, criterion, optimizer, scheduler
 
 
 def main(args):
     print(f"Model: Train:{args.train}, Test: {args.test}")
     set_random_seeds(args.seed)
     device = args.device
-    mydata, num_singles, num_comps, model, criterion, optimizer, scheduler = make(args)
+    mydata, model, criterion, optimizer, scheduler = make(args)
+    num_singles = mydata.num_classes
+    num_comps = mydata.num_comp
     num_classes = num_singles + num_comps
     print("Total number of classes to train: ", num_classes)
     # args.nbatches = mydata.nbatches
@@ -145,7 +147,6 @@ def main(args):
                                             device=device,
                                             logdir=base_path,
                                             )
-        # print(f"Metrics in training: {metrics}")
 
         state = {
             "epoch_best": epoch_best,
@@ -170,7 +171,6 @@ def main(args):
     else:
         print(f"## No training, load trained model directly")
 
-
     if args.test:
         use_uncertainty = args.use_uncertainty
         if use_uncertainty:
@@ -191,21 +191,16 @@ def main(args):
 
         # #Evaluation, Inference
         print(f"\n### Evaluate the model after all epochs:")
-        evaluate_vague_nonvague_ENN(
+        evaluate_vague_nonvague(
             model, mydata.test_loader, mydata.R, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device)
 
         print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
-        evaluate_vague_nonvague_ENN(
+        evaluate_vague_nonvague(
             model_best_from_valid, mydata.test_loader, mydata.R, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, bestModel=True)
-
-    # W = mydata.num_classes 
-    # a = torch.div(torch.ones(mydata.num_classes), mydata.num_classes).to(device)
-    # vague_classes_ids = mydata.vague_classes_ids
-    # num_comp = mydata.num_comp
 
     # a_copy = a
     # for element in range(num_comp):

@@ -7,7 +7,7 @@ import copy
 import time 
 import wandb
 from helper_functions import one_hot_embedding
-from test import evaluate_vague_nonvague_ENN
+from test import evaluate_vague_nonvague
 from backbones import EfficientNet_pretrain
 
 #PDML:
@@ -161,19 +161,19 @@ def train_model(
                 with torch.set_grad_enabled(phase == "train"):
                     if uncertainty:
                         y = one_hot_embedding(labels, num_classes, device)
-                        y = y.to(device, non_blocking=True)
+                        # y = y.to(device, non_blocking=True)
                         outputs = model(inputs)
                         _, preds = torch.max(outputs, 1)
 
                         if exp_type == 1: #expected_MSE + KL
                             loss, loss_first, loss_second = criterion(
-                                outputs, y.float(), epoch, num_classes, 
+                                outputs, y, epoch, num_classes, 
                                 None, kl_lam, None, None, 
                                 kl_reg=kl_reg, 
                                 device=device)
                         if exp_type == 2: #expected_CE + KL + CE
                             loss, loss_first, loss_second, loss_third = criterion(
-                                outputs, y.float(), epoch, num_classes, 
+                                outputs, y, epoch, num_classes, 
                                 None, kl_lam, None, None, ce_lam, None, None,
                                 kl_reg=kl_reg,
                                 exp_type=exp_type, 
@@ -183,7 +183,7 @@ def train_model(
                                 logits = pretrainedModel(inputs)
                                 pretrainedProb = F.softmax(logits, dim=1)
                             loss, loss_first, loss_second, loss_third = criterion(
-                                outputs, y.float(), epoch, num_classes, 
+                                outputs, y, epoch, num_classes, 
                                 None, kl_lam, kl_lam_teacher, None, None,
                                 pretrainedProb, forward_kl_teacher,
                                 kl_reg=kl_reg, kl_reg_teacher=kl_reg_teacher,
@@ -191,21 +191,21 @@ def train_model(
                                 device=device)
                         if exp_type in [4,5]: #expected_CE - Entropy
                             loss, loss_first, loss_second = criterion(
-                                outputs, y.float(), epoch, num_classes, 
+                                outputs, y, epoch, num_classes, 
                                 None, 0, None, entropy_lam, ce_lam, None, None,
                                 kl_reg=kl_reg, entropy_reg=entropy_reg,
                                 exp_type=exp_type,
                                 device=device)
                         if exp_type == 6: # CE
                             loss, loss_first, loss_second = criterion(
-                                outputs, y.float(), epoch, num_classes, 
+                                outputs, y, epoch, num_classes, 
                                 None, 0, None, entropy_lam, ce_lam, None, None,
                                 kl_reg=kl_reg, entropy_reg=entropy_reg,
                                 exp_type=exp_type,
                                 device=device)
                         if exp_type == 7: #expected_CE + CE - Entropy
                             loss, loss_first, loss_second, loss_third = criterion(
-                                outputs, y.float(), epoch, num_classes, 
+                                outputs, y, epoch, num_classes, 
                                 None, 0, None, entropy_lam, ce_lam, None, None,
                                 kl_reg=kl_reg, entropy_reg=entropy_reg,
                                 exp_type=exp_type,
@@ -264,7 +264,7 @@ def train_model(
                 best_model_wts = copy.deepcopy(model.state_dict()) # deep copy the model
             if phase == "val":
                 if epoch == 0 or ((epoch+1) % 1 ==0):
-                    acc = evaluate_vague_nonvague_ENN(
+                    acc = evaluate_vague_nonvague(
                         model, mydata.test_loader, mydata.R, 
                         mydata.num_classes, mydata.num_comp, 
                         mydata.vague_classes_ids, 
