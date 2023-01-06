@@ -324,6 +324,7 @@ class tinyImageNetVague():
 
         if self.duplicate:
             train_ds = self.modify_vague_samples(train_ds)
+            valid_ds = self.modify_vague_samples(valid_ds)
         
         print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
         self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
