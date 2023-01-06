@@ -112,7 +112,33 @@ def make(args):
     return mydata, model, criterion, optimizer, scheduler
 
 
+def generateSpecPath(
+    exp_type, 
+    output_folder, saved_spec_dir, 
+    init_lr, 
+    kl_lam, 
+    kl_lam_teacher, forward_kl_teacher, 
+    entropy_lam, 
+    ce_lam):
+    base_path = os.path.join(output_folder, saved_spec_dir)
+    if exp_type == 6:
+        tag = "_".join(["lr", str(init_lr), "EntropyLam", str(entropy_lam)])
+    base_path_spec_hyper = os.path.join(base_path, tag)
+    create_path(base_path_spec_hyper)
+    return base_path_spec_hyper
+
+
 def main(args):
+    print(f"Current all hyperparameters: {args}")
+    base_path_spec_hyper = generateSpecPath(
+        args.exp_type,
+        args.output_folder, args.saved_spec_dir, 
+        args.init_lr, 
+        args.kl_lam, 
+        args.kl_lam_teacher, args.forward_kl_teacher, 
+        args.entropy_lam, 
+        args.ce_lam)
+    
     print(f"Model: Train:{args.train}, Test: {args.test}")
     set_random_seeds(args.seed)
     device = args.device
@@ -121,7 +147,6 @@ def main(args):
     num_comps = mydata.num_comp
     num_classes = num_singles + num_comps
     print("Total number of classes to train: ", num_classes)
-    # args.nbatches = mydata.nbatches
 
     if args.train:
         start = time.time()
@@ -145,7 +170,7 @@ def main(args):
                                             ce_lam=args.ce_lam,
                                             exp_type=args.exp_type,
                                             device=device,
-                                            logdir=base_path,
+                                            logdir=base_path_spec_hyper,
                                             )
 
         state = {
@@ -157,13 +182,13 @@ def main(args):
 
         if args.use_uncertainty:
             if args.digamma:
-                saved_path = os.path.join(base_path, "model_uncertainty_digamma.pt")
+                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
             if args.log:
-                saved_path = os.path.join(base_path, "model_uncertainty_log.pt")
+                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_log.pt")
             if args.mse:
-                saved_path = os.path.join(base_path, "model_uncertainty_mse.pt")
+                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
         else:
-            saved_path = os.path.join(base_path, "model_CrossEntropy.pt")
+            saved_path = os.path.join(base_path_spec_hyper, "model_CrossEntropy.pt")
         torch.save(state, saved_path)
         print(f"Saved: {saved_path}")
         end = time.time()
@@ -175,13 +200,13 @@ def main(args):
         use_uncertainty = args.use_uncertainty
         if use_uncertainty:
             if args.digamma:
-                saved_path = os.path.join(base_path, "model_uncertainty_digamma.pt")
+                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
             if args.log:
-                saved_path = os.path.join(base_path, "model_uncertainty_log.pt")
+                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_log.pt")
             if args.mse:
-                saved_path = os.path.join(base_path, "model_uncertainty_mse.pt")
+                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
         else:
-            saved_path = os.path.join(base_path, "model_CrossEntropy.pt")
+            saved_path = os.path.join(base_path_spec_hyper, "model_CrossEntropy.pt")
         
         checkpoint = torch.load(saved_path, map_location=device)
         model.load_state_dict(checkpoint["model_state_dict"])
@@ -222,8 +247,8 @@ if __name__ == "__main__":
     create_path(base_path)
 
     config_file = os.path.join(base_path, "config.yml")
-    config = yaml.load(open(config_file), Loader=yaml.FullLoader)
-    opt.update(config)
+    CONFIG = yaml.load(open(config_file), Loader=yaml.FullLoader)
+    opt.update(CONFIG)
 
     # else:  # yaml priority is higher than args
     #     opt = yaml.load(open(args.config), Loader=yaml.FullLoader)
@@ -231,11 +256,11 @@ if __name__ == "__main__":
     #     args = argparse.Namespace(**opt)
 
     # convert args from Dict to Object
-    args = dictToObj(opt)
-    args.device = set_device(args.gpu)
+    # args = dictToObj(opt)
+    opt["device"] = set_device(args.gpu)
 
     # tell wandb to get started
-    print(config)
-    with wandb.init(project=f"{config['dataset']}-{config['num_comp']}M-HENN", config=config):
+    print("Default setting before hyperparameters tuning:", opt)
+    with wandb.init(project=f"{opt['dataset']}-{opt['num_comp']}M-Ker{opt['gauss_kernel_size']}-HENN-Sweep", config=opt):
         config = wandb.config
-        main(args)
+        main(config)

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 from sklearn.metrics import precision_score, recall_score, f1_score
 from helper_functions import projection_prob, meanGDD, js_subset, vague_belief_mass
-from loss import lossFunc
+# from loss import lossFunc
 from collections import Counter
 import wandb
 
@@ -95,7 +95,7 @@ def evaluate_vague_nonvague(
         preds_all.append(preds)
 
     outputs_all = torch.cat(outputs_all, dim=0)
-    labels_all = torch.cat(labels_all, dim=0) #todo !!!!
+    labels_all = torch.cat(labels_all, dim=0)
     true_labels = torch.cat(true_labels_all, dim=0)
     preds_all = torch.cat(preds_all, dim=0)
     acc = correct / len(labels_all)

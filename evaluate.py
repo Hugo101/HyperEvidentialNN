@@ -198,14 +198,16 @@ def evaluate_model(
         epoch_loss_3 = running_loss_3 / dataset_size
 
     train_valid_log(exp_type, "valid", epoch, valid_acc, valid_loss,epoch_loss_1, epoch_loss_2, epoch_loss_3)
+    
     time_epoch = time.time() - begin_eval
     print(
     f"Finish the evaluation in this epoch in {time_epoch//60:.0f}m {time_epoch%60:.0f}s.")
 
-    valid_acc_2 = evaluate_vague_nonvague(
+    evaluate_vague_nonvague(
         model, dataloader, mydata.R, 
         mydata.num_classes, mydata.num_comp, 
         mydata.vague_classes_ids, 
         epoch, device)
 
+    # print("valid_acc", valid_acc, valid_acc_2)
     return valid_acc, valid_loss
