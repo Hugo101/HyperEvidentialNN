@@ -160,11 +160,11 @@ def train_DetNN(
 
     time_elapsed = time.time() - since
     print(f"TRAINing complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s.")
-    
-    print(f"Best val epoch: {best_epoch}, Acc: {best_acc:4f}")
+
     final_model_wts = copy.deepcopy(model.state_dict()) # view the model in the last epoch is the best 
     model.load_state_dict(final_model_wts)
 
+    print(f"Best val epoch: {best_epoch}, Acc: {best_acc:4f}")
     model_best = copy.deepcopy(model)
     # load best model weights
     model_best.load_state_dict(best_model_wts)
