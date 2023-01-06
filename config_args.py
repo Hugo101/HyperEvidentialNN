@@ -24,9 +24,12 @@ parser.add_argument(
 #     type=int, help='The index of the gpu used'
 #     )
 parser.add_argument(
-    '--gpu', default=5, 
+    '--gpu', default=0, 
     type=int, help='The index of the gpu used'
     )
+parser.add_argument(
+    '--sweep', action='store_true', help='hyperparameters tuning or not'
+)
 # parser.add_argument(
 #     '--num_comp', default=1, 
 #     type=int, help='The number of composite elements'
@@ -40,6 +43,16 @@ parser.add_argument(
     '--seed', default=42, 
     type=int, help='set random seed'
     )
+
+parser.add_argument(
+    '--init_lr', default=0.1, 
+    type=float, help='set init learning rate'
+    )
+
+parser.add_argument(
+    '--entropy_lam', default=0.0,
+    type=float, help="weight for regularizer: entropy"
+)
 
 # parser.add_argument(
 #     '--epochs_stage_1', default=25, 
