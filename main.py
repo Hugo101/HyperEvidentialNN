@@ -121,7 +121,7 @@ def generateSpecPath(
     entropy_lam, 
     ce_lam):
     base_path = os.path.join(output_folder, saved_spec_dir)
-    if exp_type == 6:
+    if exp_type in [5, 6]:
         tag = "_".join(["lr", str(init_lr), "EntropyLam", str(entropy_lam)])
     base_path_spec_hyper = os.path.join(base_path, tag)
     create_path(base_path_spec_hyper)
