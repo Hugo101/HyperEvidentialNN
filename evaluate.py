@@ -204,7 +204,7 @@ def evaluate_model(
     f"Finish the evaluation in this epoch in {time_epoch//60:.0f}m {time_epoch%60:.0f}s.")
 
     evaluate_vague_nonvague(
-        model, dataloader, mydata.R, 
+        model, mydata.test_loader, mydata.R, 
         mydata.num_classes, mydata.num_comp, 
         mydata.vague_classes_ids, 
         epoch, device)
