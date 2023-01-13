@@ -164,11 +164,16 @@ def train_valid_split(data, valid_perc=0.1, seed=42):
 
 def make_vague_samples(
     dataset, num_single, num_single_comp, vague_classes_ids, 
-    blur=True,
+    blur=True, gray=False,
     gauss_kernel_size=5, data_train=True):
     trans_blur = None
     if blur:
         trans_blur = transforms.GaussianBlur(kernel_size=gauss_kernel_size, sigma=gauss_kernel_size/3)
+        if gray:
+            trans_blur = transforms.Compose([
+                transforms.Grayscale(num_output_channels=3),
+                trans_blur,
+                ])
     all_sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
 
     if data_train:
@@ -211,6 +216,7 @@ class tinyImageNetVague():
         imagenet_hierarchy_path="./",
         duplicate=False,
         blur=True,
+        gray=False,
         gauss_kernel_size=5,
         pretrain=True, #if using pretrained model, resize img to 224
         num_workers=4, #tune this on different servers
@@ -219,6 +225,7 @@ class tinyImageNetVague():
         print('Loading TinyImageNet...')
         start_time = time.time()
         self.blur = blur
+        self.gray = gray
         self.gauss_kernel_size = gauss_kernel_size
         self.duplicate = duplicate
         self.batch_size = batch_size
@@ -279,6 +286,7 @@ class tinyImageNetVague():
             self.num_classes, self.kappa,
             self.vague_classes_ids,
             blur=self.blur,
+            gray=self.gray,
             gauss_kernel_size=self.gauss_kernel_size,
             data_train=True)
         valid_ds = make_vague_samples(
@@ -286,6 +294,7 @@ class tinyImageNetVague():
             self.num_classes, self.kappa,
             self.vague_classes_ids,
             blur=self.blur,
+            gray=self.gray,
             gauss_kernel_size=self.gauss_kernel_size,
             data_train=False)
         test_ds = make_vague_samples(
@@ -293,6 +302,7 @@ class tinyImageNetVague():
             self.num_classes, self.kappa,
             self.vague_classes_ids,
             blur=self.blur,
+            gray=self.gray,
             gauss_kernel_size=self.gauss_kernel_size,
             data_train=False)
         

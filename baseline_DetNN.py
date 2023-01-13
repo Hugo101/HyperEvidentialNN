@@ -380,6 +380,7 @@ def make(args):
             imagenet_hierarchy_path=args.data_dir,
             duplicate=True, #key duplicate
             blur=args.blur,
+            gray=args.gray,
             gauss_kernel_size=args.gauss_kernel_size,
             pretrain=args.pretrain,
             num_workers=args.num_workers,
