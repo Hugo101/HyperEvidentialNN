@@ -6,14 +6,15 @@ parser.add_argument(
     '--data_dir', default='/home/cxl173430/data/DATASETS', 
     type=str, help='dataset directory'
     )
-# PDML 1/2/4 : /home/cxl173430/data/DATASETS/
+# PDML 1/2/4 : /home/cxl173430/data/DATASETS
+# windows:  C:/Users/cxl173430/data/DATASETS
 
 parser.add_argument(
     "--output_folder", default="/home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/", 
     type=str, help="where results will be saved."
 )
-# PDML : /data/cxl173430/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/
-# PDML2/4: /home/cxl173430/Documents/projects/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/
+# PDML 1/2/4: /home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/
+# windows: C:/Users/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/
 
 parser.add_argument(
     "--saved_spec_dir", default="Debug", 
