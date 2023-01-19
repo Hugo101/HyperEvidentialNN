@@ -168,7 +168,9 @@ def make_vague_samples(
     gauss_kernel_size=5, data_train=True):
     trans_blur = None
     if blur:
-        trans_blur = transforms.GaussianBlur(kernel_size=gauss_kernel_size, sigma=gauss_kernel_size/3)
+        sigma_v = 0.3 * ((gauss_kernel_size - 1) * 0.5 - 1) + 0.8
+        # sigma_v = gauss_kernel_size / 3
+        trans_blur = transforms.GaussianBlur(kernel_size=gauss_kernel_size, sigma=sigma_v)
         if gray:
             trans_blur = transforms.Compose([
                 transforms.Grayscale(num_output_channels=3),
