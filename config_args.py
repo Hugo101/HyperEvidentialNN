@@ -31,10 +31,15 @@ parser.add_argument(
 parser.add_argument(
     '--sweep', action='store_true', help='hyperparameters tuning or not'
 )
-# parser.add_argument(
-#     '--num_comp', default=1, 
-#     type=int, help='The number of composite elements'
-#     )
+parser.add_argument(
+    '--num_comp', default=5, 
+    type=int, help='The number of composite elements'
+    )
+
+parser.add_argument(
+    '--gauss_kernel_size', default=11, 
+    type=int, help='gauss_kernel_size'
+    )
 
 # parser.add_argument(
     # '--backbone', default='EfficientNet', 

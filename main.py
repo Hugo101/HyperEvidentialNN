@@ -116,6 +116,8 @@ def make(args):
 def generateSpecPath(
     exp_type, 
     output_folder, saved_spec_dir, 
+    num_comp,
+    gauss_kernel_size,
     init_lr, 
     kl_lam, 
     kl_lam_teacher, forward_kl_teacher, 
@@ -123,8 +125,11 @@ def generateSpecPath(
     ce_lam):
     base_path = os.path.join(output_folder, saved_spec_dir)
     if exp_type in [5, 6]:
+        tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep", f"HENNexp{exp_type}"])
         tag = "_".join(["lr", str(init_lr), "EntropyLam", str(entropy_lam)])
-    base_path_spec_hyper = os.path.join(base_path, tag)
+    base_path_spec_hyper_0 = os.path.join(base_path, tag0)
+    create_path(base_path_spec_hyper_0)
+    base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, tag)
     create_path(base_path_spec_hyper)
     return base_path_spec_hyper
 
@@ -133,7 +138,9 @@ def main(args):
     print(f"Current all hyperparameters: {args}")
     base_path_spec_hyper = generateSpecPath(
         args.exp_type,
-        args.output_folder, args.saved_spec_dir, 
+        args.output_folder, args.saved_spec_dir,
+        args.num_comp,
+        args.gauss_kernel_size, 
         args.init_lr, 
         args.kl_lam, 
         args.kl_lam_teacher, args.forward_kl_teacher, 
