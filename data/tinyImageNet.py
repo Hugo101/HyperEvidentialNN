@@ -132,21 +132,6 @@ def get_sample_idx_by_class(dataset, num_classes):
     return sample_idx, sample_idx_by_class
 
 
-# def train_valid_split(dataset, num_classes, valid_perc=0):
-#     train_class_indices = []
-#     valid_class_indices = []
-#     _, sample_idx_by_class = get_sample_idx_by_class(dataset, num_classes)
-#     for samples in sample_idx_by_class:
-#         valid_samples = random.sample(samples, int(len(samples)*valid_perc))
-#         valid_class_indices.append(valid_samples)
-#         train_class_indices.append(list(set(samples)-set(valid_samples)))
-#     valid_ds = Subset(dataset, valid_class_indices[0])
-#     train_ds = Subset(dataset, train_class_indices[0])
-#     for k in range(1, num_classes):
-#         valid_ds += Subset(dataset, valid_class_indices[k])
-#         train_ds += Subset(dataset, train_class_indices[k])
-#     return train_ds, valid_ds
-
 def train_valid_split(data, valid_perc=0.1, seed=42):
     # generate indices: instead of the actual data we pass in integers instead
     train_indices, valid_indices, _, _ = train_test_split(

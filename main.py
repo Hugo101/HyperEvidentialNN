@@ -20,6 +20,7 @@ from config_args import parser
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
+from data.breeds import BREEDSVague
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16
 # from backbones import EfficientNet_pretrain, ResNet50
 from train import train_model
@@ -48,19 +49,7 @@ def make(args):
             pretrain=args.pretrain,
             num_workers=args.num_workers,
             seed=args.seed)
-        num_singles = mydata.num_classes
-        num_comps = mydata.num_comp
-        print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
-        num_classes_both = num_singles + num_comps
-        if args.backbone == "EfficientNet-b3":
-            model = HENN_EfficientNet(num_classes_both, pretrain=args.pretrain)
-        elif args.backbone == "ResNet50":
-            model = HENN_ResNet50(num_classes_both)
-        elif args.backbone == "VGG16":
-            model = HENN_VGG16(num_classes_both)
-        else:
-            print(f"### ERROR {args.dataset}: The backbone {args.backbone} is invalid!")
-    
+
     elif args.dataset == "cifar100":
         mydata = CIFAR100Vague(
             args.data_dir, 
@@ -73,18 +62,36 @@ def make(args):
             seed=args.seed,
             comp_el_size=args.num_subclasses,
             )
-        num_singles = mydata.num_classes
-        num_comps = mydata.num_comp
-        print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
-        num_classes_both = num_singles + num_comps
-        if args.backbone == "EfficientNet-b3":
-            model = HENN_EfficientNet(num_classes_both, pretrain=args.pretrain)
-        elif args.backbone == "ResNet50":
-            model = HENN_ResNet50(num_classes_both)
-        elif args.backbone == "VGG16":
-            model = HENN_VGG16(num_classes_both)
-        else:
-            print(f"### ERROR {args.dataset}: The backbone {args.backbone} is invalid!")
+
+    elif args.dataset in ["living17", "nonliving26", "entity13", "entity30"]:
+        data_path_base = os.path.join(args.data_dir, "ILSVRC/ILSVRC")
+        mydata = BREEDSVague(
+            os.path.join(data_path_base, "BREEDS/"),
+            os.path.join(data_path_base, 'Data', 'CLS-LOC/'),
+            ds_name=args.dataset,
+            num_comp=args.num_comp, 
+            batch_size=args.batch_size,
+            blur=args.blur,
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            comp_el_size=args.num_subclasses,
+            )
+
+    num_singles = mydata.num_classes
+    num_comps = mydata.num_comp
+    print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
+    
+    num_classes_both = num_singles + num_comps
+    if args.backbone == "EfficientNet-b3":
+        model = HENN_EfficientNet(num_classes_both, pretrain=args.pretrain)
+    elif args.backbone == "ResNet50":
+        model = HENN_ResNet50(num_classes_both)
+    elif args.backbone == "VGG16":
+        model = HENN_VGG16(num_classes_both)
+    else:
+        print(f"### ERROR {args.dataset}: The backbone {args.backbone} is invalid!")
 
     model = model.to(args.device)
 

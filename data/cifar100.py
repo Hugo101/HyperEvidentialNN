@@ -98,7 +98,9 @@ def make_vague_samples(
     gauss_kernel_size=3, num_samples_subclass=450):
     trans_blur = None
     if blur:
-        trans_blur = transforms.GaussianBlur(kernel_size=gauss_kernel_size, sigma=gauss_kernel_size/3)
+        sigma_v = 0.3 * ((gauss_kernel_size - 1) * 0.5 - 1) + 0.8
+        # sigma_v = gauss_kernel_size / 3
+        trans_blur = transforms.GaussianBlur(kernel_size=gauss_kernel_size, sigma=sigma_v)
     all_sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
 
     total_vague_examples_ids = []
