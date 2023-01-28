@@ -1,6 +1,8 @@
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "../..")))
+path_test = os.path.abspath(os.path.join(os.getcwd()))
+print("#### ", path_test)
+sys.path.append(os.path.abspath(os.path.join(os.getcwd())))
 import time
 import math
 import random
