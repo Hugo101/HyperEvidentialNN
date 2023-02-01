@@ -138,6 +138,7 @@ def train_DetNN(
         epoch_acc = epoch_acc.detach()
         epoch_acc_GT = running_corrects_GT / dataset_size_train
         epoch_acc_GT = epoch_acc_GT.detach()
+        
         train_valid_log("train", epoch, epoch_acc, epoch_acc_GT, epoch_loss)
         time_epoch_train = time.time() - begin_epoch
         print(
@@ -386,6 +387,7 @@ def make(args):
             pretrain=args.pretrain,
             num_workers=args.num_workers,
             seed=args.seed)
+        
     elif args.dataset == "cifar100":
         mydata = CIFAR100Vague(
             args.data_dir, 
@@ -434,9 +436,16 @@ def make(args):
     return mydata, model, criterion, optimizer, scheduler
 
 
-def generateSpecPath(output_folder, saved_spec_dir, init_lr):
+def generateSpecPath(
+    output_folder, saved_spec_dir, 
+    num_comp,
+    gauss_kernel_size,
+    init_lr):
     base_path = os.path.join(output_folder, saved_spec_dir)
-    base_path_spec_hyper = os.path.join(base_path, str(init_lr))
+    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep_DNN"])
+    base_path_spec_hyper_0 = os.path.join(base_path, tag0)
+    create_path(base_path_spec_hyper_0)
+    base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, str(init_lr))
     create_path(base_path_spec_hyper)
     return base_path_spec_hyper
 
@@ -449,7 +458,11 @@ def main(project_name, args_all):
         args = wandb.config
         print(f"Current wandb.config: {wandb.config}")
         # create a more specfic path to save the model for the current hyperparameter
-        base_path_spec_hyper = generateSpecPath(args.output_folder, args.saved_spec_dir, args.init_lr)
+        base_path_spec_hyper = generateSpecPath(
+            args.output_folder, args.saved_spec_dir, 
+            args.num_comp,
+            args.gauss_kernel_size,
+            args.init_lr)
         set_random_seeds(args.seed)
         device = args.device
         mydata, model, criterion, optimizer, scheduler = make(args)
