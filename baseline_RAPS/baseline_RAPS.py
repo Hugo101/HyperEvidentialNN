@@ -37,7 +37,7 @@ parser.add_argument(
     type=str, help="where results will be saved."
 )
 parser.add_argument(
-    "--saved_spec_dir", default="HyperEvidentialNN/baseline_RAPS", 
+    "--saved_spec_dir", default="CIFAR100/20M_15M_10M_357ker_RAPS/15M_ker3_sweep_DNN_pytorchKer", 
     type=str, help="specific experiment path."
     )
 parser.add_argument('--gpu', default=0, type=int, help='GPU ID')
@@ -51,7 +51,7 @@ opt = vars(args)
 create_path(args.output_folder) 
 base_path = os.path.join(args.output_folder, args.saved_spec_dir)
 create_path(base_path)
-config_file = os.path.join(base_path, "config.yml")
+config_file = os.path.join(base_path, "config_raps.yml")
 config = yaml.load(open(config_file), Loader=yaml.FullLoader)
 opt.update(config)
 args = opt
@@ -89,19 +89,19 @@ def data_log(
         tag = "TestF"
     
     wandb.log({
-        f"{tag} JSoverall": js_result[0], 
-        f"{tag} JScomp": js_result[1], 
-        f"{tag} JSsngl": js_result[2],
-        f"{tag} CmpPreci": prec_recall_f[0], 
-        f"{tag} CmpRecal": prec_recall_f[1], 
-        f"{tag} CmpFscor": prec_recall_f[2], 
-        f"{tag} NonVagueAcc0": accs[0],
-        f"{tag} NonVagueAcc1": accs[1],
-        f"{tag} NonVagueAcc2": accs[2],
-        f"{tag} comp_GT_cnt": comp_GT_cnt,
-        f"{tag} comp_pred_cnt": cmp_pred_cnt,
+        f"{tag}_JSoverall": js_result[0], 
+        f"{tag}_JScomp": js_result[1], 
+        f"{tag}_JSsngl": js_result[2],
+        f"{tag}_CmpPreci": prec_recall_f[0], 
+        f"{tag}_CmpRecal": prec_recall_f[1], 
+        f"{tag}_CmpFscor": prec_recall_f[2], 
+        f"{tag}_NonVagueAcc0": accs[0],
+        f"{tag}_NonVagueAcc1": accs[1],
+        f"{tag}_NonVagueAcc2": accs[2],
+        f"{tag}_comp_GT_cnt": comp_GT_cnt,
+        f"{tag}_comp_pred_cnt": cmp_pred_cnt,
         }, step=None)
-    print(f"{tag} NonVagueAcc: {accs[0]:.4f}, {accs[1]:.4f}, {accs[2]:.4f}, \n \
+    print(f"{tag}_NonVagueAcc: {accs[0]:.4f}, {accs[1]:.4f}, {accs[2]:.4f}, \n \
             JS(O_V_N): {js_result[0]:.4f}, {js_result[1]:.4f}, {js_result[2]:.4f}, \n \
             P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
 
@@ -116,14 +116,28 @@ def make(args):
                     num_comp=args.num_comp, 
                     batch_size=args.batch_size,
                     imagenet_hierarchy_path=args.data_dir,
-                    duplicate=True)
+                    duplicate=True,
+                    blur=args.blur,
+                    gray=args.gray,
+                    gauss_kernel_size=args.gauss_kernel_size,
+                    pretrain=args.pretrain,
+                    num_workers=args.num_workers,
+                    seed=args.seed)
+
     elif args.dataset == "cifar100":
         mydata = CIFAR100Vague(
                     args.data_dir, 
                     num_comp=args.num_comp,
                     batch_size=args.batch_size,
-                    imagenet_hierarchy_path=args.data_dir,
-                    duplicate=True)
+                    duplicate=True,
+                    blur=args.blur,
+                    gauss_kernel_size=args.gauss_kernel_size,
+                    pretrain=args.pretrain,
+                    num_workers=args.num_workers,
+                    seed=args.seed,
+                    comp_el_size=args.num_subclasses,
+                    )
+
     print(f"Size of training/validation/test:")
     print(len(mydata.train_loader.dataset)) # >90200 because of the duplicates
     print(len(mydata.valid_loader.dataset))
@@ -134,12 +148,13 @@ def make(args):
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
 
     # duplicate validation set
-    valid_ds = mydata.modify_vague_samples(mydata.valid_loader.dataset)
+    # valid_ds = mydata.modify_vague_samples(mydata.valid_loader.dataset)
+    valid_ds = mydata.valid_loader.dataset
     # reduce one additional label info for validation set
     valid_ds_reducedLabel = ReduceLabelDataset(valid_ds)
     valid_loader = DataLoader(valid_ds_reducedLabel, batch_size=args.batch_size, num_workers=1, pin_memory=True)
 
-    assert mydata.valid_loader.dataset.dataset is not None
+    # assert mydata.valid_loader.dataset.dataset is not None
     
     # define pretrained CNN model
     num_singles = mydata.num_classes
@@ -159,7 +174,7 @@ def raps(model, mydata, calib_loader, bestModel=True):
     _ = model.eval()
     model.to(device)
     # Conformalize model
-    cmodel = ConformalModel(model, calib_loader, alpha=0.1, lamda_criterion='size')
+    cmodel = ConformalModel(model, calib_loader, mydata.name, alpha=0.1, lamda_criterion='size')
 
     correct_vague = 0.0
     correct_nonvague = 0.0
@@ -184,7 +199,7 @@ def raps(model, mydata, calib_loader, bestModel=True):
     if mydata.name == "tinyimagenet":
         height = 224
     elif mydata.name == "cifar100":
-        height = 32
+        height = 224
         
     for data in test_ds:
         img, label_singl, label = data
@@ -265,7 +280,7 @@ def main():
     mydata, valid_loader, model = make(args)
 
     saved_spec_dir_DNN = args.saved_spec_dir_DNN
-    model_saved_base_path = os.path.join(args.output_folder, saved_spec_dir_DNN)
+    model_saved_base_path = os.path.join(base_path, saved_spec_dir_DNN)
     print("DNN model saved path:", model_saved_base_path)
     saved_path = os.path.join(model_saved_base_path, "model_CrossEntropy.pt")
     # load pretrained CNN model
@@ -281,6 +296,6 @@ def main():
 if __name__ == "__main__":
     # tell wandb to get started
     print(config)
-    with wandb.init(project=f"{config['dataset']}-{config['num_comp']}M-RAPS", config=config):
+    with wandb.init(project=f"{config['dataset']}-20M-15M-10M-RAPS", config=config):
         config = wandb.config
         main()

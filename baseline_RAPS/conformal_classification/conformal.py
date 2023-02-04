@@ -1,3 +1,9 @@
+import os
+import sys
+path_test = os.path.abspath(os.path.join(os.getcwd()))
+print("#### ", path_test)
+sys.path.append(os.path.join(path_test, "conformal_classification"))
+
 import numpy as np
 from scipy.special import softmax
 import torch
