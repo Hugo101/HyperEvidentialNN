@@ -245,7 +245,7 @@ def make(args, device):
     # load pretrained model_prob (traditional DNN)
     
     saved_spec_dir_DNN = args.saved_spec_dir_DNN
-    model_saved_base_path = os.path.join(args.output_folder, saved_spec_dir_DNN)
+    model_saved_base_path = os.path.join(base_path, saved_spec_dir_DNN)
     print("DNN model saved path:", model_saved_base_path)
     saved_path = os.path.join(model_saved_base_path, "model_CrossEntropy.pt")
     # load pretrained CNN model
