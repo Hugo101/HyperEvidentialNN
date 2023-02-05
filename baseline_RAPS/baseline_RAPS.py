@@ -25,7 +25,7 @@ from conformal_classification.utils import *
 
 data_path = "/home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/"
 sys.path.insert(1, data_path)
-from backbones import EfficientNet_pretrain, ResNet50
+from backbones import EfficientNet_pretrain, ResNet50, VGG16
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from common_tools import set_device, create_path, dictToObj, set_random_seeds
@@ -163,6 +163,8 @@ def make(args):
         model = EfficientNet_pretrain(num_singles)
     elif args.backbone == "ResNet50":
         model = ResNet50(num_singles)
+    elif args.backbone == "VGG16":
+        model = VGG16(num_singles)
     model = model.to(device)
 
     return mydata, valid_loader, model

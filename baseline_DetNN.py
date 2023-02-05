@@ -17,7 +17,7 @@ from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
-from backbones import EfficientNet_pretrain, ResNet50
+from backbones import EfficientNet_pretrain, ResNet50, VGG16
 from helper_functions import js_subset, acc_subset
 
 
@@ -426,6 +426,8 @@ def make(args):
         model = EfficientNet_pretrain(num_singles, pretrain=args.pretrain)
     elif args.backbone == "ResNet50":
         model = ResNet50(num_singles)
+    elif args.backbone == "VGG16":
+        model = VGG16(num_singles)
     else:
         print(f"### ERROR: The backbone {args.backbone} is invalid!")
     model = model.to(device)

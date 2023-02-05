@@ -67,7 +67,7 @@ class HENN_VGG16(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
 
-        # EfficientNet
+        # VGG16
         self.network = models.vgg16(pretrained=True)
         self.network.classifier[6] = torch.nn.Linear(4096, num_classes)
         self.output = nn.Softplus()
@@ -75,4 +75,18 @@ class HENN_VGG16(nn.Module):
     def forward(self, x):
         logits = self.network(x)
         logits = self.output(logits)
+        return logits
+
+
+class VGG16(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+
+        # VGG16
+        self.network = models.vgg16(pretrained=True)
+        self.network.classifier[6] = torch.nn.Linear(4096, num_classes)
+
+    def forward(self, x):
+        logits = self.network(x)
+        # logits = self.output(logits)
         return logits
