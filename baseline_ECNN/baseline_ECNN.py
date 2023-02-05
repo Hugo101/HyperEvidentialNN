@@ -477,6 +477,7 @@ def evaluate_ds_set_prediction(model, test_loader, num_class, act_set, nu, utili
     return stat_result, prec_recall_f
 
 
+@torch.no_grad()
 def evaluate_vague_nonvague_final_ECNN(
     model,
     test_loader,
