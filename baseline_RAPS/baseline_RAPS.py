@@ -13,6 +13,7 @@ from sklearn.metrics import precision_score, recall_score, f1_score
 
 # Import other standard packages
 import torch
+torch.set_num_threads(4)
 from torch.utils.data import DataLoader, TensorDataset, Dataset
 import torch.backends.cudnn as cudnn
 import torchvision
@@ -296,6 +297,6 @@ def main():
 if __name__ == "__main__":
     # tell wandb to get started
     print(config)
-    with wandb.init(project=f"{config['dataset']}-20M-15M-10M-RAPS", config=config):
+    with wandb.init(project=f"{config['dataset']}-{config['backbone']}-20M-15M-10M-RAPS", config=config):
         config = wandb.config
         main()
