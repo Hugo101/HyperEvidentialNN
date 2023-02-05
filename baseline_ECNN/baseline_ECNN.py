@@ -299,7 +299,7 @@ def train_ds_model(
         running_corrects_GT = 0
         
         # Iterate over data
-        for batch_idx, (inputs, single_label_GT, labels) in enumerate(dataloader):
+        for batch_idx, (inputs, single_labels_GT, labels) in enumerate(dataloader):
             inputs = inputs.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True)
             single_labels_GT = single_labels_GT.to(device, non_blocking=True)
