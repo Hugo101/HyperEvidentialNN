@@ -233,8 +233,10 @@ def make(args, device):
     model_prob = model_prob.to(device)
 
     # define DS layer
+    n_feature_maps = 1536
+    n_prototypes=300
     if args.backbone == "EfficientNet-b3":
-        model_DS = EfficientNet_DS(num_singles)
+        model_DS = EfficientNet_DS(n_feature_maps, num_singles, n_prototypes)
     elif args.backbone == "ResNet50":
         model_DS = ResNet50(num_singles) # todo:need to add resnet modification for DS
     model_DS = model_DS.to(device)
