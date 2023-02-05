@@ -200,6 +200,44 @@ class DM(torch.nn.Module):
         outputs = (inputs + upper)[..., :-1]
         return outputs
 
+
+class DM_set_test(nn.Module):
+    '''
+    '''
+    def __init__(self, num_class, num_set, nu):
+        super(DM_set_test, self).__init__()
+        self.num_class = num_class 
+        self.nu = nu 
+        self.utility_matrix = nn.Linear(in_features = num_class, out_features = num_set, bias=False).weight 
+    
+    def forward(self, inputs):
+        for i in range(len(self.utility_matrix)): 
+            if i == 0:
+                precise = torch.mul(inputs[:, 0: self.num_class], self.utility_matrix[i])
+                precise = torch.sum(precise, dim=-1, keepdim=True) #dim=0, 1 ?
+                
+                omega_1 = torch.mul(inputs[:, -1], torch.max(self.utility_matrix[i]))
+                omega_2 = torch.mul(inputs[:, -1], torch.min(self.utility_matrix[i]))
+                
+                omega = torch.unsqueeze(self.nu*omega_1+(1-self.nu)*omega_2, -1)
+                omega = omega.type(torch.float32)
+                utility = precise + omega
+                
+            if i >= 1:
+                precise = torch.mul(inputs[:, 0: self.num_class], self.utility_matrix[i])
+                precise = torch.sum(precise, dim=-1, keepdim=True) #dim=0, 1 ?
+                
+                omega_1 = torch.mul(inputs[:, -1], torch.max(self.utility_matrix[i]))
+                omega_2 = torch.mul(inputs[:, -1], torch.min(self.utility_matrix[i]))
+                
+                omega = torch.unsqueeze(self.nu*omega_1+(1-self.nu)*omega_2, -1)
+                omega = omega.type(torch.float32)
+                utility_i = precise + omega
+                utility = torch.cat([utility, utility_i], -1)
+                
+        return utility 
+
+
 ## backbones for ECNN
 class EfficientNet_DS(nn.Module):
     def __init__(self, n_feature_maps, n_classes, n_prototypes):
