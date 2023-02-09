@@ -51,11 +51,6 @@ parser.add_argument(
     )
 
 parser.add_argument(
-    "--n_prototypes", default=200, 
-    type=int, help="number of prototypes"
-    )
-
-parser.add_argument(
     "--init_lr", default=0.1, 
     type=float, help="learning rate"
     )
@@ -68,7 +63,7 @@ opt = vars(args)
 create_path(args.output_folder) 
 base_path = os.path.join(args.output_folder, args.saved_spec_dir)
 create_path(base_path)
-config_file = os.path.join(base_path, "config_ECNN.yml")
+config_file = os.path.join(base_path, "config_ECNN_retrain.yml")
 CONFIG = yaml.load(open(config_file), Loader=yaml.FullLoader)
 opt.update(CONFIG)
 
@@ -265,20 +260,20 @@ def make(args, device):
     # define model_DS and update related parameters using model_prob parameters
     # load pretrained model_prob (traditional DNN)
     
-    saved_spec_dir_DNN = args.saved_spec_dir_DNN
-    model_saved_base_path = os.path.join(base_path, saved_spec_dir_DNN)
-    print("DNN model saved path:", model_saved_base_path)
-    saved_path = os.path.join(model_saved_base_path, "model_CrossEntropy.pt")
+    saved_spec_dir_ECNN = args.saved_spec_dir_ECNN
+    model_saved_base_path = os.path.join(base_path, saved_spec_dir_ECNN)
+    print("ECNN model saved path:", model_saved_base_path)
+    saved_path = os.path.join(model_saved_base_path, "model_uncertainty_ECNN.pt")
     # load pretrained CNN model
     checkpoint = torch.load(saved_path, map_location=device)
-    model_prob.load_state_dict(checkpoint["model_state_dict_best"]) 
+    model_DS.load_state_dict(checkpoint["model_state_dict"]) 
     
-    pretrained_dict = model_prob.state_dict()
-    model_DS_dict = model_DS.state_dict()
+    # pretrained_dict = model_prob.state_dict()
+    # model_DS_dict = model_DS.state_dict()
 
-    pretrained_dict = {k:v for k,v in pretrained_dict.items() if k in model_DS_dict}
-    model_DS_dict.update(pretrained_dict)
-    model_DS.load_state_dict(model_DS_dict)
+    # pretrained_dict = {k:v for k,v in pretrained_dict.items() if k in model_DS_dict}
+    # model_DS_dict.update(pretrained_dict)
+    # model_DS.load_state_dict(model_DS_dict)
 
     # criterion = nn.NLLLoss()
     criterion =  nn.BCELoss()

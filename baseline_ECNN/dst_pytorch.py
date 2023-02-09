@@ -35,10 +35,10 @@ class DistanceActivation_layer(torch.nn.Module):
         super(DistanceActivation_layer, self).__init__()
         self.eta = torch.nn.Linear(in_features=n_prototypes, out_features=1, bias=False)#.weight.data.fill_(torch.from_numpy(np.array(init_gamma)).to(device))
         self.xi = torch.nn.Linear(in_features=n_prototypes, out_features=1, bias=False)#.weight.data.fill_(torch.from_numpy(np.array(init_alpha)).to(device))
-        #torch.nn.init.kaiming_uniform_(self.eta.weight)
-        #torch.nn.init.kaiming_uniform_(self.xi.weight)
-        torch.nn.init.constant_(self.eta.weight,init_gamma)
-        torch.nn.init.constant_(self.xi.weight,init_alpha)
+        torch.nn.init.kaiming_uniform_(self.eta.weight)
+        torch.nn.init.kaiming_uniform_(self.xi.weight)
+        # torch.nn.init.constant_(self.eta.weight,init_gamma)
+        # torch.nn.init.constant_(self.xi.weight,init_alpha)
         #self.alpha_test = 1/(torch.exp(-self.xi.weight)+1)
         self.n_prototypes = n_prototypes
         self.alpha = None
@@ -258,9 +258,55 @@ class EfficientNet_DS(nn.Module):
         x = self.network.extract_features(x)
         x = self._avg_pooling(x)
         x = x.flatten(start_dim=1)
-        x = self._dropout(x)
+        # x = self._dropout(x)
         ## DS layers 
         x = self.dempster_shafer(x)
         #Utility layer for training
 #         outputs = self.DM(x)
+        return x
+
+
+
+
+class SVHNCnnModel_DS(nn.Module):
+    def __init__(self, n_feature_maps, n_classes, n_prototypes, dropout=False):
+        super(SVHNCnnModel_DS, self).__init__()
+        self.use_dropout = dropout
+        
+        self.n_feature_maps= n_feature_maps 
+        self.n_classes = n_classes 
+        self.n_prototypes = n_prototypes
+        
+        self.network = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2), # output: 64 x 16 x 16
+
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2), # output: 128 x 8 x 8
+
+            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2), # output: 256 x 4 x 4
+
+            nn.Flatten(), 
+            nn.Linear(256*4*4, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 512),
+            # nn.ReLU(),
+            # nn.Linear(512, 10)
+            )
+    
+        self.dempster_shafer = Dempster_Shafer_module(self.n_feature_maps, self.n_classes, self.n_prototypes)
+    
+    def forward(self, xb):
+        x = self.network(xb)
+        x = self.dempster_shafer(x)
         return x
