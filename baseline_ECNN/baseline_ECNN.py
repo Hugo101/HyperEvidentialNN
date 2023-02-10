@@ -350,7 +350,7 @@ def train_ds_model(
             logits = ds_layer.DM(model.n_classes, 0.9, device=device)(outputs) # todo
             utility = logits / logits.sum(dim=1, keepdims=True)
             # labels_one_hot = one_hot_embedding(labels, num_classes, device)
-            loss = criterion(torch.log(utility+1e-8), labels)
+            loss = criterion(torch.log(utility+1e-10), labels)
             # loss = criterion(logits, labels_one_hot)*num_classes
             _, preds = torch.max(logits, 1)
 
