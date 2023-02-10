@@ -574,17 +574,12 @@ def evaluate_vague_nonvague_final_ECNN(
         bestModel=bestModel)
 
 
-def generateSpecPath(
-    output_folder, saved_spec_dir, 
-    num_comp,
-    gauss_kernel_size,
-    init_lr,
-    optimizer_type):
-    base_path = os.path.join(output_folder, saved_spec_dir)
-    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep_E-CNN"])
+def generateSpecPath(args):
+    base_path = os.path.join(args.output_folder, args.saved_spec_dir)
+    tag0 = "_".join([f"{args.num_comp}M", f"ker{args.gauss_kernel_size}", "sweep_E-CNN"])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
-    base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, f"{optimizer_type}_{str(init_lr)}")
+    base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, f"{args.n_prototypes}_{args.optimr}_{str(args.init_lr)}")
     create_path(base_path_spec_hyper)
     return base_path_spec_hyper
 
@@ -598,12 +593,7 @@ def main(project_name, args_all):
         args = wandb.config
         print(f"Current wandb.config: {wandb.config}")
         # create a more specfic path to save the model for the current hyperparameter
-        base_path_spec_hyper = generateSpecPath(
-                args.output_folder, args.saved_spec_dir, 
-                args.num_comp,
-                args.gauss_kernel_size,
-                args.init_lr,
-                args.optimr)
+        base_path_spec_hyper = generateSpecPath(args)
         
         ## Fix randomness
         set_random_seeds(seed=args.seed) # 42
