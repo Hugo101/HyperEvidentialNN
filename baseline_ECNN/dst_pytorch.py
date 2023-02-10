@@ -294,12 +294,12 @@ class SVHNCnnModel_DS(nn.Module):
             nn.ReLU(),
             nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.MaxPool2d(2, 2), # output: 256 x 4 x 4
+            nn.MaxPool2d(2, 2), # output: 256 x 3 x 3
 
-            nn.Flatten(), 
-            nn.Linear(256*4*4, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, 512),
+            nn.Flatten(), #  output: 256 x 3 x 3
+            # nn.Linear(256*3*3, 1024),
+            # nn.ReLU(),
+            # nn.Linear(1024, 512),
             # nn.ReLU(),
             # nn.Linear(512, 10)
             )

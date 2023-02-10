@@ -280,8 +280,8 @@ def make(args, device):
     model_DS_dict.update(pretrained_dict)
     model_DS.load_state_dict(model_DS_dict)
 
-    # criterion = nn.NLLLoss()
-    criterion =  nn.BCELoss()
+    criterion = nn.NLLLoss()
+
     if args.freeze_feat:
         # freeze feature extractors
         for name, param in model_DS.named_parameters():
@@ -348,9 +348,10 @@ def train_ds_model(
             
             #utility layer 
             logits = ds_layer.DM(model.n_classes, 0.9, device=device)(outputs) # todo
-            labels_one_hot = one_hot_embedding(labels, num_classes, device)
-            # loss = criterion(torch.log(logits+1e-8), labels)
-            loss = criterion(logits, labels_one_hot)*num_classes
+            utility = logits / logits.sum(dim=1, keepdims=True)
+            # labels_one_hot = one_hot_embedding(labels, num_classes, device)
+            loss = criterion(torch.log(utility+1e-8), labels)
+            # loss = criterion(logits, labels_one_hot)*num_classes
             _, preds = torch.max(logits, 1)
 
             loss.backward()
@@ -421,9 +422,10 @@ def validate_ds_model(model, dataloader, criterion, num_classes, device):
             outputs = model(inputs)
             #utility layer 
             logits = ds_layer.DM(model.n_classes, 0.9, device=device)(outputs) # todo
-            # loss = criterion(torch.log(logits+1e-8), labels)
-            labels_one_hot = one_hot_embedding(labels, num_classes, device)
-            loss = criterion(logits, labels_one_hot) * num_classes
+            utility = logits / logits.sum(dim=1, keepdims=True)
+            loss = criterion(torch.log(utility+1e-10), labels)
+            # labels_one_hot = one_hot_embedding(labels, num_classes, device)
+            # loss = criterion(logits, labels_one_hot) * num_classes
             _, preds = torch.max(logits, 1)
         
         # statistics
