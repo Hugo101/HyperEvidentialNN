@@ -19,19 +19,25 @@ from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 from baseline_DetNN import evaluate_vague_nonvague_final
 
 
-def train_valid_log(phase, epoch, accDup, accGT, loss):
+def train_valid_log(phase, epoch, accDup, accGT, loss, epoch_loss_1, epoch_loss_2):
     wandb.log({
         f"{phase} epoch": epoch, 
-        f"{phase} loss": loss, 
+        f"{phase} loss": loss,
+        f"{phase}_loss_1": epoch_loss_1, 
+        f"{phase}_loss_2_entropy": epoch_loss_2, 
         f"{phase} accDup": accDup, 
         f"{phase} accGT": accGT}, step=epoch)
-    print(f"{phase.capitalize()} loss: {loss:.4f} accDup: {accDup:.4f} accGT: {accGT:.4f}")
+    print(f"{phase.capitalize()} loss: {loss:.4f} \
+            (loss_1: {epoch_loss_1:.4f}, \
+                loss_2_entropy:{epoch_loss_2:.4f}) \
+                    accDup: {accDup:.4f} accGT: {accGT:.4f}")
 
 
-def validate(model, dataloader, criterion, K, epoch, device):
+def validate(model, dataloader, criterion, K, epoch, entropy_lam, device):
     print("Validating...")
     model.eval()  # Set model to evaluate mode
     running_loss = 0.0
+    running_loss_1, running_loss_2 = 0.0, 0.0
     running_corrects = 0.0
     dataset_size_val = len(dataloader.dataset)
     for batch_idx, (inputs, single_labels_GT, single_label_dup) in enumerate(dataloader):
@@ -42,21 +48,35 @@ def validate(model, dataloader, criterion, K, epoch, device):
             outputs = model(inputs)
             _, preds = torch.max(outputs, 1)
             y = one_hot_embedding(labels, K, device)
+            # loss, loss_first, loss_second = criterion(
+            #                     outputs, y, epoch, K, 
+            #                     None, 0, None, None, 
+            #                     kl_reg=False, 
+            #                     device=device)
+
             loss, loss_first, loss_second = criterion(
-                                outputs, y, epoch, K, 
-                                None, 0, None, None, 
-                                kl_reg=False, 
-                                device=device)
+                    outputs, y, epoch, K, 
+                    None, 0, None, entropy_lam, None, None, None,
+                    kl_reg=False, entropy_reg=True,
+                    exp_type=5,
+                    device=device)
 
         # statistics
         batch_size = inputs.size(0)
         running_loss += loss.item() * batch_size
         running_corrects += torch.sum(preds == labels)
 
+        running_loss_1 += loss_first * batch_size
+        running_loss_2 += loss_second * batch_size
+
     epoch_loss = running_loss / dataset_size_val
     epoch_acc = running_corrects / dataset_size_val
     epoch_acc = epoch_acc.detach()
-    return epoch_acc, epoch_loss
+    
+    epoch_loss_1 = running_loss_1 / dataset_size_val
+    epoch_loss_2 = running_loss_2 / dataset_size_val
+    
+    return epoch_acc, epoch_loss, epoch_loss_1, epoch_loss_2
 
 
 def train_ENN(
@@ -66,6 +86,7 @@ def train_ENN(
     optimizer,
     scheduler=None,
     num_epochs=25,
+    entropy_lam=0.1,
     device=None,
     logdir = "./",
 ):
@@ -87,6 +108,8 @@ def train_ENN(
         
         model.train()  # Set model to training mode
         running_loss = 0.0
+        running_loss_1, running_loss_2 = 0.0, 0.0
+        
         running_corrects = 0.0
         running_loss_GT = 0.0
         running_corrects_GT = 0.0
@@ -102,11 +125,17 @@ def train_ENN(
             outputs = model(inputs)
             _, preds = torch.max(outputs, 1)
             y = one_hot_embedding(labels, K, device)
+            # loss, loss_first, loss_second = criterion(
+            #                     outputs, y, epoch, K, 
+            #                     None, 0, None, None, 
+            #                     kl_reg=False, 
+            #                     device=device)
             loss, loss_first, loss_second = criterion(
-                                outputs, y, epoch, K, 
-                                None, 0, None, None, 
-                                kl_reg=False, 
-                                device=device)
+                    outputs, y, epoch, K, 
+                    None, 0, None, entropy_lam, None, None, None,
+                    kl_reg=False, entropy_reg=True,
+                    exp_type=5,
+                    device=device)
             loss.backward()
             optimizer.step()
             
@@ -115,6 +144,9 @@ def train_ENN(
             running_loss += loss.detach() * batch_size
             running_corrects += torch.sum(preds == labels)
             running_corrects_GT += torch.sum(preds == single_labels_GT)
+        
+            running_loss_1 += loss_first * batch_size
+            running_loss_2 += loss_second * batch_size
         
         if scheduler is not None:
             scheduler.step()
@@ -125,16 +157,19 @@ def train_ENN(
         epoch_acc_GT = running_corrects_GT / dataset_size_train
         epoch_acc_GT = epoch_acc_GT.detach()
 
-        train_valid_log("train", epoch, epoch_acc, epoch_acc_GT, epoch_loss)
+        epoch_loss_1 = running_loss_1 / dataset_size_train
+        epoch_loss_2 = running_loss_2 / dataset_size_train
+        
+        train_valid_log("train", epoch, epoch_acc, epoch_acc_GT, epoch_loss, epoch_loss_1, epoch_loss_2)
         time_epoch_train = time.time() - begin_epoch
         print(
         f"Finish the Train in this epoch in {time_epoch_train//60:.0f}m {time_epoch_train%60:.0f}s.")
 
         #validation phase
-        valid_acc, valid_loss = validate(
+        valid_acc, valid_loss, valid_run_loss_1, valid_run_loss_2 = validate(
             model, mydata.valid_loader, criterion,
-            K, epoch, device)
-        train_valid_log("valid", epoch, valid_acc, 0, valid_loss)
+            K, epoch, entropy_lam, device)
+        train_valid_log("valid", epoch, valid_acc, 0, valid_loss, valid_run_loss_1, valid_run_loss_2)
         
         if valid_acc > best_acc:
             best_acc = valid_acc
@@ -231,8 +266,8 @@ def make(args):
         #     print("### Loss type: edl_log_loss")
         #     criterion = edl_log_loss
         # elif args.mse:
-        print("### Loss type: edl_mse_loss")
-        criterion = edl_mse_loss
+        print("### Loss type: edl_digamma_loss")
+        criterion = edl_digamma_loss
         # else:
         #     print("ERROR: --uncertainty requires --mse, --log or --digamma.")
     else:
@@ -286,6 +321,7 @@ def main(project_name, args_all):
                                                 optimizer,
                                                 scheduler=scheduler,
                                                 num_epochs=args.epochs,
+                                                entropy_lam=args.entropy_lam,
                                                 device=device,
                                                 )
             state = {
@@ -295,7 +331,7 @@ def main(project_name, args_all):
                 "optimizer_state_dict": optimizer.state_dict(),
             }
             
-            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
+            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
             torch.save(state, saved_path)
             print(f"Saved: {saved_path}")
             end = time.time()
@@ -315,7 +351,7 @@ def main(project_name, args_all):
                 # if args.log:
                 #     saved_path = os.path.join(base_path, "model_uncertainty_log.pt")
                 # if args.mse:
-                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
+                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
             else:
                 saved_path = os.path.join(base_path_spec_hyper, "model_CrossEntropy.pt")
 
