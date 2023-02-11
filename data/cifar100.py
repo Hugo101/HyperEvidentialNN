@@ -10,6 +10,7 @@ from data.tinyImageNet import train_valid_split
 import tarfile
 import time
 from torchvision.datasets.utils import download_url
+from collections import defaultdict
 
 def create_path(dir):
     if dir is not None:
@@ -284,7 +285,7 @@ class CIFAR100Vague:
         return vague_subs_nids, vague_subs_ids
     
     
-    def modify_vague_samples(self, dataset):
+    def modify_vague_samples_old(self, dataset):
         C = self.vague_classes_ids
         for k in range(self.num_classes, self.kappa): # K, kappa
             # idx1 = [i for i in range(len(dataset)) if dataset[i][2] != k]
@@ -304,3 +305,25 @@ class CIFAR100Vague:
                 copies += CustomDataset(subset_2, comp_class_id=C[k - self.num_classes][j])
             dataset = subset_1 + copies
         return dataset
+    
+    
+    def modify_vague_samples(self, dataset):
+        C = self.vague_classes_ids
+        idx1 = [] # singleton example idx
+        idx2 = defaultdict(list) # vague examples label and their idx
+        for i in range(len(dataset)):
+            if dataset[i][2] >= self.num_classes:
+                # composite example
+                idx2[dataset[i][2]].append(i)
+            else:
+                idx1.append(i)
+        
+        subset_1 = Subset(dataset, idx1)  # the rest 
+        
+        for comp_label, indx in idx2.items(): # each vague example
+            comp_label_subset = Subset(dataset, indx)
+            copies = CustomDataset(comp_label_subset, comp_class_id=C[comp_label - self.num_classes][0])
+            for j in range(1, len(C[comp_label - self.num_classes])):
+                copies += CustomDataset(comp_label_subset, comp_class_id=C[comp_label - self.num_classes][j])
+            subset_1 = subset_1 + copies
+        return subset_1
