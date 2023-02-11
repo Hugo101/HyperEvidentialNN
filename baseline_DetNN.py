@@ -223,14 +223,18 @@ def get_cutoff(
     device,
     detNN=True): #todo: could be better for efficiency
     cutoff = 0.0
-    end_cutoff = 0.5
-    interval = 0.05
+    if detNN:
+        end_cutoff = 0.5
+        interval = 0.05
+    else:
+        end_cutoff = 0.05
+        interval = 0.001
     accs = []
     cutoffs = []
     while cutoff <= end_cutoff:
-        accuracy = evaluate_cutoff(model, val_loader, R, cutoff, device, detNN=detNN)
-        print(f"For cutoff = {cutoff:.2f}, Validation Accuracy: {accuracy:.4f}")    
-        accs.append(accuracy)
+        js = evaluate_cutoff(model, val_loader, R, cutoff, device, detNN=detNN)
+        print(f"For cutoff = {cutoff:.3f}, Validation JS: {js:.4f}")    
+        accs.append(js)
         cutoffs.append(cutoff)
         cutoff += interval
     maxID = torch.argmax(torch.tensor(accs)) 
