@@ -23,7 +23,7 @@ from torch import optim, nn
 
 # DS related 
 import dst_pytorch as ds_layer
-from dst_pytorch import EfficientNet_DS, DM_set_test
+from dst_pytorch import EfficientNet_DS, DM_set_test, Dempster_Shafer_module
 
 data_path = "/home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/"
 sys.path.insert(1, data_path)
@@ -41,7 +41,7 @@ parser.add_argument(
     type=str, help="where results will be saved."
 )
 parser.add_argument(
-    "--saved_spec_dir", default="CIFAR100/10M_ker3_ECNN_pytorchKer_V2", 
+    "--saved_spec_dir", default="CIFAR100/20M_15M_10M_357ker_sweep_ECNN_pytorchKer_V2", 
     type=str, help="specific experiment path."
     )
 
@@ -202,6 +202,18 @@ def test_result_log_ECNN(
             P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
 
 
+class feature_extractor_efficientNet(nn.Module):
+    def __init__(self, model_prob):
+        super(feature_extractor_efficientNet, self).__init__()
+        self.network = model_prob.network
+        self._avg_pooling = nn.AdaptiveAvgPool2d(1)
+    def forward(self, x):
+        x = self.network.extract_features(x)
+        x = self._avg_pooling(x)
+        x = x.flatten(start_dim=1)
+        return x
+
+
 def make(args, device):
     mydata = None
     num_singles = 0
@@ -246,24 +258,12 @@ def make(args, device):
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
 
     # define pretrained CNN model
-    num_singles = mydata.num_classes
     if args.backbone == "EfficientNet-b3":
         model_prob = EfficientNet_pretrain(num_singles)
     elif args.backbone == "ResNet50":
         model_prob = ResNet50(num_singles)
     model_prob = model_prob.to(device)
 
-    # define DS layer
-    n_feature_maps = 1536
-    n_prototypes=200
-    if args.backbone == "EfficientNet-b3":
-        model_DS = EfficientNet_DS(n_feature_maps, num_singles, n_prototypes)
-    elif args.backbone == "ResNet50":
-        model_DS = ResNet50(num_singles) # todo:need to add resnet modification for DS
-    model_DS = model_DS.to(device)
-    
-    # define model_DS and update related parameters using model_prob parameters
-    # load pretrained model_prob (traditional DNN)
     
     saved_spec_dir_DNN = args.saved_spec_dir_DNN
     model_saved_base_path = os.path.join(base_path, saved_spec_dir_DNN)
@@ -273,20 +273,41 @@ def make(args, device):
     checkpoint = torch.load(saved_path, map_location=device)
     model_prob.load_state_dict(checkpoint["model_state_dict_best"]) 
     
-    pretrained_dict = model_prob.state_dict()
-    model_DS_dict = model_DS.state_dict()
+    # feature extractor
+    feat_extractor = feature_extractor_efficientNet(model_prob)
+    for name, param in feat_extractor.named_parameters():
+        param.requires_grad = False  
+    feat_extractor.eval()
+    feat_extractor = feat_extractor.to(device)
+    
+    # define DS layer
+    n_feature_maps = 1536
+    n_prototypes=200
+    model_DS = Dempster_Shafer_module(n_feature_maps, num_singles, n_prototypes)
+    model_DS = model_DS.to(device)
+    
+    # if args.backbone == "EfficientNet-b3":
+    #     model_DS = EfficientNet_DS(n_feature_maps, num_singles, n_prototypes)
+    # elif args.backbone == "ResNet50":
+    #     model_DS = ResNet50(num_singles) # todo:need to add resnet modification for DS
+    # model_DS = model_DS.to(device)
+    
+    # define model_DS and update related parameters using model_prob parameters
+    # load pretrained model_prob (traditional DNN)
+    # pretrained_dict = model_prob.state_dict()
+    # model_DS_dict = model_DS.state_dict()
 
-    pretrained_dict = {k:v for k,v in pretrained_dict.items() if k in model_DS_dict}
-    model_DS_dict.update(pretrained_dict)
-    model_DS.load_state_dict(model_DS_dict)
+    # pretrained_dict = {k:v for k,v in pretrained_dict.items() if k in model_DS_dict}
+    # model_DS_dict.update(pretrained_dict)
+    # model_DS.load_state_dict(model_DS_dict)
 
     criterion = nn.NLLLoss()
 
-    if args.freeze_feat:
-        # freeze feature extractors
-        for name, param in model_DS.named_parameters():
-            if "network" in name:
-                param.requires_grad = False  
+    # if args.freeze_feat:
+    #     # freeze feature extractors
+    #     for name, param in model_DS.named_parameters():
+    #         if "network" in name:
+    #             param.requires_grad = False  
     
     if args.optimr == "Adam":
         optimizer = optim.Adam(filter(lambda p : p.requires_grad, model_DS.parameters()), lr=args.init_lr)
@@ -301,14 +322,16 @@ def make(args, device):
     # optimizer = optim.SGD(model_DS.parameters(), lr=args.init_lr)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[milestone1, milestone2], gamma=0.1)
     
-    return mydata, model_DS, criterion, optimizer, scheduler
+    return mydata, feat_extractor, model_DS, criterion, optimizer, scheduler
 
 
 def train_ds_model(
+    feat_extractor,
     model,
     mydata,
     criterion,
     optimizer,
+    base_path_spec_hyper,
     scheduler=None,
     num_epoch=25,
     device=None,
@@ -344,7 +367,8 @@ def train_ds_model(
             #zero the parameter gradients
             optimizer.zero_grad()
             #forward
-            outputs = model(inputs) #shape: batch*(classes+1)
+            feats = feat_extractor(inputs)
+            outputs = model(feats) #shape: batch*(classes+1)
             
             #utility layer 
             logits = ds_layer.DM(model.n_classes, 0.9, device=device)(outputs) # todo
@@ -379,7 +403,7 @@ def train_ds_model(
 
         #validation phase
         valid_acc, valid_loss = validate_ds_model(
-            model, mydata.valid_loader, criterion, num_classes, device)
+            feat_extractor, model, mydata.valid_loader, criterion, num_classes, device)
         train_valid_log("valid", epoch, valid_acc, 0, valid_loss)
         
         if valid_acc > best_acc:
@@ -392,6 +416,14 @@ def train_ds_model(
         time_epoch = time.time() - begin_epoch
         print(f"Finish the EPOCH in {time_epoch//60:.0f}m {time_epoch%60:.0f}s.")
         
+        if (epoch + 1)%50 == 0: 
+            state = {
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                }
+            saved_path = os.path.join(base_path_spec_hyper, f"model_uncertainty_ECNN_{epoch}.pt")
+            torch.save(state, saved_path)
+            
         time.sleep(0.5)
         
     time_elapsed = time.time() - since
@@ -408,7 +440,7 @@ def train_ds_model(
     return model, model_best, best_epoch
 
 
-def validate_ds_model(model, dataloader, criterion, num_classes, device):
+def validate_ds_model(feat_extractor, model, dataloader, criterion, num_classes, device):
     print("Validating...")
     model.eval()
     running_loss = 0.0
@@ -419,7 +451,9 @@ def validate_ds_model(model, dataloader, criterion, num_classes, device):
         labels = single_label_dup.to(device, non_blocking=True)
         # forward
         with torch.no_grad():
-            outputs = model(inputs)
+            feats = feat_extractor(inputs)
+            outputs = model(feats)
+
             #utility layer 
             logits = ds_layer.DM(model.n_classes, 0.9, device=device)(outputs) # todo
             utility = logits / logits.sum(dim=1, keepdims=True)
@@ -496,7 +530,7 @@ def calculate_metrics_set_prediction(outputs, labels, act_set, num_single_class)
 
 
 @torch.no_grad()
-def evaluate_ds_set_prediction(model, test_loader, num_class, act_set, nu, utility_matrix, device):
+def evaluate_ds_set_prediction(feat_extractor, model, test_loader, num_class, act_set, nu, utility_matrix, device):
     num_set = len(act_set)
     dmTest = DM_set_test(num_class, num_set, nu).to(device)  
     dmTest.weight = nn.Parameter(torch.tensor(utility_matrix).T)
@@ -509,6 +543,7 @@ def evaluate_ds_set_prediction(model, test_loader, num_class, act_set, nu, utili
         images, single_labels_GT, labels = batch
         images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         # single_labels_GT = single_labels_GT.to(device, non_blocking=True)
+        images = feat_extractor(images)
         ds_normalize = model(images)
         output = dmTest(ds_normalize)
         outputs_all.append(output)
@@ -522,6 +557,7 @@ def evaluate_ds_set_prediction(model, test_loader, num_class, act_set, nu, utili
 
 @torch.no_grad()
 def evaluate_vague_nonvague_final_ECNN(
+    feat_extractor,
     model,
     test_loader,
     R,
@@ -543,6 +579,7 @@ def evaluate_vague_nonvague_final_ECNN(
         images, single_labels_GT, labels = batch
         images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         single_labels_GT = single_labels_GT.to(device, non_blocking=True)
+        images = feat_extractor(images)
         outputs = model(images)
         #utility layer 
         logits = ds_layer.DM(model.n_classes, 0.9, device=device)(outputs) # todo
@@ -561,7 +598,7 @@ def evaluate_vague_nonvague_final_ECNN(
     print("### Set Prediction: ")
     print("Generate utility matrix:")
     utility_matrix = generateUtilityMatrix(num_singles, R)
-    stat_result, prec_recall_f = evaluate_ds_set_prediction(model, test_loader, num_singles, R, nu, utility_matrix, device)
+    stat_result, prec_recall_f = evaluate_ds_set_prediction(feat_extractor, model, test_loader, num_singles, R, nu, utility_matrix, device)
 
     avg_js_nonvague = stat_result[0] / (stat_result[2]+1e-10)
     avg_js_vague = stat_result[1] / (stat_result[3]+1e-10)
@@ -598,16 +635,18 @@ def main(project_name, args_all):
         ## Fix randomness
         set_random_seeds(seed=args.seed) # 42
         device = set_device(args.gpu)
-        mydata, model, criterion, optimizer, scheduler = make(args, device)
+        mydata, feat_extractor, model, criterion, optimizer, scheduler = make(args, device)
         num_singles = mydata.num_classes
         
         if args.train:
             start = time.time()
             model, model_best, epoch_best = train_ds_model(
+                feat_extractor,
                 model, 
                 mydata, 
                 criterion,
                 optimizer,
+                base_path_spec_hyper,
                 scheduler=scheduler,
                 num_epoch=args.epochs,
                 device=device
@@ -641,12 +680,12 @@ def main(project_name, args_all):
             # model after the final epoch
             print(f"\n### Evaluate the model after all epochs:")
             evaluate_vague_nonvague_final_ECNN(
-                    model, test_loader, R, num_singles, device, 
+                    feat_extractor, model, test_loader, R, num_singles, device, 
                     nu=0.9, bestModel=False)
 
             print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
             evaluate_vague_nonvague_final_ECNN(
-                    model_best_from_valid, test_loader, R, num_singles, device,
+                    feat_extractor, model_best_from_valid, test_loader, R, num_singles, device,
                     nu=0.9, bestModel=True)
 
 
