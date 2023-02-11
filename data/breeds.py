@@ -1,7 +1,7 @@
 import os
 import sys
-path_test = os.path.abspath(os.path.join(os.getcwd()))
-print("#### ", path_test)
+# path_test = os.path.abspath(os.path.join(os.getcwd()))
+# print("#### ", path_test)
 sys.path.append(os.path.abspath(os.path.join(os.getcwd())))
 import time
 import math
