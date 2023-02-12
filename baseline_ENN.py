@@ -12,6 +12,7 @@ from config_args import parser
 from common_tools import create_path, set_device, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
+from data.breeds import BREEDSVague
 from backbones import HENN_EfficientNet, EfficientNet_pretrain
 from backbones import HENN_ResNet50, ResNet50, HENN_VGG16
 from helper_functions import one_hot_embedding
@@ -224,6 +225,23 @@ def make(args):
         mydata = CIFAR100Vague(
             args.data_dir, 
             num_comp=args.num_comp,
+            batch_size=args.batch_size,
+            duplicate=True,  #key duplicate
+            blur=args.blur,
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            comp_el_size=args.num_subclasses,
+            )
+    
+    elif args.dataset in ["living17", "nonliving26", "entity13", "entity30"]:
+        data_path_base = os.path.join(args.data_dir, "ILSVRC/ILSVRC")
+        mydata = BREEDSVague(
+            os.path.join(data_path_base, "BREEDS/"),
+            os.path.join(data_path_base, 'Data', 'CLS-LOC/'),
+            ds_name=args.dataset,
+            num_comp=args.num_comp, 
             batch_size=args.batch_size,
             duplicate=True,  #key duplicate
             blur=args.blur,
