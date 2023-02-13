@@ -18,12 +18,27 @@ from data.breeds import BREEDSVague
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16
 from backbones import EfficientNet_pretrain, ResNet50, VGG16
 import argparse
+import torch.nn as nn
+
+def entropy_softmax(pred):
+    m = nn.Softmax(dim=1)
+    prob = m(pred)
+    entropy = - prob * torch.log(prob+1e-10)
+    total_un = torch.sum(entropy, dim=1)
+    return total_un
+
+
+def entropy_SL(alpha):
+    S = torch.sum(alpha, dim=1, keepdims=True)
+    prob = alpha / S
+    entropy = - prob * torch.log(prob+1e-10)
+    entropy_s = torch.sum(entropy, dim=1)
+    # entropy_m = torch.mean(entropy_s)
+    return entropy_s
+
 
 @torch.no_grad()
 def evaluate_set_DNN(model, data_loader, W, K, device):
-    vaguenesses = []
-    is_vague = []
-    
     model.eval()
     outputs_all = []
     labels_all = [] # including composite labels
@@ -39,20 +54,14 @@ def evaluate_set_DNN(model, data_loader, W, K, device):
 
     outputs_all = torch.cat(outputs_all, dim=0)
     labels_all = torch.cat(labels_all, dim=0)
-    # b = output / (torch.sum(output, dim=1) + W)[:, None]
-    b = outputs_all / (torch.sum(outputs_all, dim=1, keepdim=True) + W)
-    vaguenesses = torch.sum(b[:, K:], dim=1).cpu().numpy()
-    is_vague = labels_all > K-1
-    is_vague = is_vague.cpu().numpy()
+    uncertain = entropy_softmax(outputs_all)
+    uncertain = uncertain.cpu().numpy()
 
-    return is_vague, vaguenesses     
+    return uncertain
 
 
 @torch.no_grad()
 def evaluate_set_ENN(model, data_loader, W, K, device):
-    vaguenesses = []
-    is_vague = []
-    
     model.eval()
     outputs_all = []
     labels_all = [] # including composite labels
@@ -68,13 +77,10 @@ def evaluate_set_ENN(model, data_loader, W, K, device):
 
     outputs_all = torch.cat(outputs_all, dim=0)
     labels_all = torch.cat(labels_all, dim=0)
-    # b = output / (torch.sum(output, dim=1) + W)[:, None]
-    b = outputs_all / (torch.sum(outputs_all, dim=1, keepdim=True) + W)
-    vaguenesses = torch.sum(b[:, K:], dim=1).cpu().numpy()
-    is_vague = labels_all > K-1
-    is_vague = is_vague.cpu().numpy()
+    uncertain = entropy_SL(outputs_all + 1)
+    uncertain = uncertain.cpu().numpy()
 
-    return is_vague, vaguenesses     
+    return uncertain     
 
 
 
@@ -116,9 +122,11 @@ def evaluate_set_HENN(model, data_loader, W, K, device):
 
 
 def draw_roc(
-    model_HENN, model_DNN, model_ENN, 
+    num_comp, gauss_kernel_size,
+    model_HENN, model_ENN, model_DNN, 
     data_loader, 
-    num_singles, num_comps, 
+    num_singles, num_comps,
+    saved_roc_figures_dir,
     device, bestModel=True):
     # One hot encode the labels in order to plot them
     # y_onehot = pd.get_dummies(y, columns=model.classes_)
@@ -134,27 +142,41 @@ def draw_roc(
     metrics = []
     is_vague, vaguenesses = evaluate_set_HENN(model_HENN, data_loader, W, num_singles, device)
     metrics.append(vaguenesses)
-    _, entropy_DNN = evaluate_set_DNN(model_DNN, data_loader, W, num_singles, device)
-    metrics.append(entropy_DNN)
-    _, entropy_ENN = evaluate_set_ENN(model_ENN, data_loader, W, num_singles, device)
+    entropy_ENN = evaluate_set_ENN(model_ENN, data_loader, W, num_singles, device)
     metrics.append(entropy_ENN)
+    entropy_DNN = evaluate_set_DNN(model_DNN, data_loader, W, num_singles, device)
+    metrics.append(entropy_DNN)
+    tag = ["Vagueness-HENN", "Entropy-ENN", "Entropy-DNN"]
     for i in range(3):
         fpr, tpr, _ = roc_curve(is_vague, metrics[i])
         auc_score = roc_auc_score(is_vague, metrics[i])
 
         # name = f"{y_onehot.columns[i]} (AUC={auc_score:.2f})"
-        name = f"(AUC={auc_score})"
+        name = f"{tag[i]} (AUC={auc_score:.2f})"
         fig.add_trace(go.Scatter(x=fpr, y=tpr, name=name, mode='lines'))
     
     fig.update_layout(
-    xaxis_title='False Positive Rate',
-    yaxis_title='True Positive Rate',
-    yaxis=dict(scaleanchor="x", scaleratio=1),
-    xaxis=dict(constrain='domain'),
-    width=700, height=500
+        title={
+        'text': f"M: {num_comp}, KernelSize:{gauss_kernel_size}",   # 标题名称
+        'y':0.85,  # 位置，坐标轴的长度看做1
+        'x':0.5,
+        # 'xanchor': 'center',   # 相对位置
+        # 'yanchor': 'top'
+        },
+        xaxis_title='False Positive Rate',
+        yaxis_title='True Positive Rate',
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+        xaxis=dict(constrain='domain'),
+        width=700, height=500,
+        legend=dict(
+            # yanchor="top",
+            y=0.05,
+            # xanchor="left",
+            x=0.4)
     )
+
     fig.show()
-    
+    fig.write_image(f"{saved_roc_figures_dir}/{num_comp}M_KernelSize_{gauss_kernel_size}.png")
 
 def make(args):
     mydata = None
@@ -243,15 +265,23 @@ def main(args):
     saved_path_DNN = os.path.join(args.base_path_spec_DNN, "model_CrossEntropy.pt")
     checkpoint = torch.load(saved_path_HENN, map_location=device)
     model_HENN.load_state_dict(checkpoint["model_state_dict_best"])
-
+    print(f"\n### HENN Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
+    
     checkpoint = torch.load(saved_path_ENN, map_location=device)
     model_ENN.load_state_dict(checkpoint["model_state_dict_best"])
+    print(f"\n### ENN Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
     
     checkpoint = torch.load(saved_path_DNN, map_location=device)
     model_DNN.load_state_dict(checkpoint["model_state_dict_best"])
+    print(f"\n### DNN Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
     
-    print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
-    draw_roc(model_HENN, model_ENN, model_DNN, mydata.test_loader, num_singles, num_comps, device, bestModel=True)
+    draw_roc(
+        args.num_comp, args.gauss_kernel_size,
+        model_HENN, model_ENN, model_DNN, 
+        mydata.test_loader, 
+        num_singles, num_comps,
+        args.saved_roc_figures_dir,
+        device, bestModel=True)
 
 
 if __name__ == "__main__":    
@@ -263,7 +293,7 @@ if __name__ == "__main__":
         type=str, help="where results will be saved."
     )
     parser.add_argument(
-        "--saved_spec_dir", default="Tiny/15M_ker5_sweep_HENNexp5_pytorchKer", 
+        "--saved_spec_dir", default="Tiny/Statistics", 
         type=str, help="specific experiment path."
         )
     parser.add_argument('--gpu', default=0, type=int, help='GPU ID')
@@ -274,19 +304,23 @@ if __name__ == "__main__":
 
     # build the path to save model and results
     base_path = os.path.join(args.output_folder, args.saved_spec_dir)
-    config_file = os.path.join(base_path, "config.yml")
+    saved_path = os.path.join(base_path, "ROC_figures")
+    config_file = os.path.join(saved_path, "config.yml")
     CONFIG = yaml.load(open(config_file), Loader=yaml.FullLoader)
     opt.update(CONFIG)
     opt["device"] = set_device(args.gpu)
     
-    spec_dir = "lr_1e-05_EntropyLam_0.1"
+    opt["saved_roc_figures_dir"] = saved_path
+    
+    spec_dir = f"20M_15M_10M_357ker_sweep_HENNexp5_pytorchKer/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_HENNexp5/lr_1e-05_EntropyLam_0.1"
     opt["base_path_spec_HENN"] = os.path.join(base_path, spec_dir)
     
-    spec_dir = "lr_1e-05_EntropyLam_0.1"
-    opt["base_path_spec_HENN"] = os.path.join(base_path, spec_dir)
+    spec_dir = f"20M_15M_10M_357ker_sweep_ENN_pytorchKer_UCE/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_ENN/1e-05"
+    opt["base_path_spec_ENN"] = os.path.join(base_path, spec_dir)
     
-    spec_dir = "lr_1e-05_EntropyLam_0.1"
-    opt["base_path_spec_HENN"] = os.path.join(base_path, spec_dir)
+    spec_dir = f"20M_15M_10M_357ker_sweep_DNN_pytorchKer/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_DNN/1e-05"
+    opt["base_path_spec_DNN"] = os.path.join(base_path, spec_dir)
+    
     
     # convert args from Dict to Object
     args = dictToObj(opt)
