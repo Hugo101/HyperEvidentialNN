@@ -42,6 +42,8 @@ parser.add_argument(
     type=str, help="specific experiment path."
     )
 parser.add_argument('--gpu', default=0, type=int, help='GPU ID')
+parser.add_argument('--kreg', default=-1.0, type=float, help='kreg')
+parser.add_argument('--lamda', default=-1.0, type=float, help='lambda')
 # parser.add_argument('--num_workers', metavar='NW', help='number of workers', default=0)
 # parser.add_argument('--num_calib', metavar='NCALIB', help='number of calibration points', default=10000)
 parser.add_argument('--seed', default=42, type=int, help='random seed')
@@ -170,14 +172,25 @@ def make(args):
     return mydata, valid_loader, model
 
 
-def raps(model, mydata, calib_loader, bestModel=True):
+def raps(
+    model, mydata, calib_loader, 
+    kreg=None, lamda=None,
+    bestModel=True):
     # RAPS
+    if kreg == -1.0:
+        kreg = None
+    if lamda == -1.0:
+        lamda = None
+        
     cudnn.benchmark = True
     # Get your model
     _ = model.eval()
     model.to(device)
     # Conformalize model
-    cmodel = ConformalModel(model, calib_loader, mydata.name, alpha=0.1, lamda_criterion='size')
+    cmodel = ConformalModel(
+        model, calib_loader, mydata.name, alpha=0.18, 
+        kreg=kreg, lamda=lamda,
+        lamda_criterion='size')
 
     correct_vague = 0.0
     correct_nonvague = 0.0
@@ -288,12 +301,12 @@ def main():
     saved_path = os.path.join(model_saved_base_path, "model_CrossEntropy.pt")
     # load pretrained CNN model
     checkpoint = torch.load(saved_path, map_location=device)
-    model.load_state_dict(checkpoint["model_state_dict"])
-    raps(model, mydata, valid_loader, bestModel=False)
+    # model.load_state_dict(checkpoint["model_state_dict"])
+    # raps(model, mydata, valid_loader, kreg=None, lamda=None, bestModel=False)
     
     model_best_from_valid = copy.deepcopy(model)
     model_best_from_valid.load_state_dict(checkpoint["model_state_dict_best"]) 
-    raps(model_best_from_valid, mydata, valid_loader, bestModel=True)
+    raps(model_best_from_valid, mydata, valid_loader, kreg=args.kreg, lamda=args.lamda, bestModel=True)
 
 
 if __name__ == "__main__":
