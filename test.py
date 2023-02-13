@@ -307,26 +307,3 @@ def calculate_metrics_ENN(output, labels, R):
     stat_result = [correct_nonvague, correct_vague, nonvague_total, vague_total] #todo check this with calculate_metric
     GT_Pred_res = [GTs, Predicteds]
     return stat_result, GT_Pred_res
-
-
-# def evaluate_set(model, data_loader, W, K, device):
-#     vaguenesses = []
-#     is_vague = []
-#     for batch in data_loader:
-#         images, labels = batch
-#         images, labels = images.to(device), labels.to(device)
-#         output = model(images)
-#         b = output / (torch.sum(output, dim=1) + W)[:, None]
-#         total_vaguenesses = torch.sum(b[:, K:], dim=1)
-#         is_vague += [y >= K for y in labels.detach().cpu().numpy().tolist()]
-#         vaguenesses += total_vaguenesses.detach().cpu().numpy().tolist()
-#     return is_vague, vaguenesses         
-
-
-# def draw_roc(model, data_loader):
-#     is_vague, vaguenesses = evaluate_set(model, data_loader)
-#     fpr, tpr, thresholds = metrics.roc_curve(is_vague, vaguenesses)
-#     plt.plot(fpr, tpr)
-#     plt.ylabel('True Positive Rate')
-#     plt.xlabel('false Positive Rate')
-#     plt.show()
