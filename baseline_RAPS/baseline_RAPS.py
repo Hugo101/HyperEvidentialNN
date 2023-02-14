@@ -28,7 +28,9 @@ sys.path.insert(1, data_path)
 from backbones import EfficientNet_pretrain, ResNet50, VGG16
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
+from data.breeds import BREEDSVague
 from common_tools import set_device, create_path, dictToObj, set_random_seeds
+from helper_functions import AddLabelDataset
 
 parser = argparse.ArgumentParser(description='Conformalize Torchvision Model')
 parser.add_argument('--data_dir', default="/home/cxl173430/data/DATASETS/", type=str, help='path to dataset')
@@ -44,6 +46,7 @@ parser.add_argument(
 parser.add_argument('--gpu', default=0, type=int, help='GPU ID')
 parser.add_argument('--kreg', default=-1.0, type=float, help='kreg')
 parser.add_argument('--lamda', default=-1.0, type=float, help='lambda')
+parser.add_argument('--alpha', default=0.1, type=float, help='alpha')
 # parser.add_argument('--num_workers', metavar='NW', help='number of workers', default=0)
 # parser.add_argument('--num_calib', metavar='NCALIB', help='number of calibration points', default=10000)
 parser.add_argument('--seed', default=42, type=int, help='random seed')
@@ -85,11 +88,9 @@ def data_log(
     comp_GT_cnt, cmp_pred_cnt, 
     js_result, 
     accs, 
-    bestModel=True):
-    if bestModel:
-        tag = "TestB"
-    else:
-        tag = "TestF"
+    valid_test="valid"):
+
+    tag = valid_test
     
     wandb.log({
         f"{tag}_JSoverall": js_result[0], 
@@ -141,6 +142,23 @@ def make(args):
                     comp_el_size=args.num_subclasses,
                     )
 
+    elif args.dataset in ["living17", "nonliving26", "entity13", "entity30"]:
+        data_path_base = os.path.join(args.data_dir, "ILSVRC/ILSVRC")
+        mydata = BREEDSVague(
+            os.path.join(data_path_base, "BREEDS/"),
+            os.path.join(data_path_base, 'Data', 'CLS-LOC/'),
+            ds_name=args.dataset,
+            num_comp=args.num_comp, 
+            batch_size=args.batch_size,
+            duplicate=True,  #key duplicate
+            blur=args.blur,
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            comp_el_size=args.num_subclasses,
+            )
+    
     print(f"Size of training/validation/test:")
     print(len(mydata.train_loader.dataset)) # >90200 because of the duplicates
     print(len(mydata.valid_loader.dataset))
@@ -155,7 +173,6 @@ def make(args):
     valid_ds = mydata.valid_loader.dataset
     # reduce one additional label info for validation set
     valid_ds_reducedLabel = ReduceLabelDataset(valid_ds)
-    valid_loader = DataLoader(valid_ds_reducedLabel, batch_size=args.batch_size, num_workers=1, pin_memory=True)
 
     # assert mydata.valid_loader.dataset.dataset is not None
     
@@ -169,35 +186,16 @@ def make(args):
         model = VGG16(num_singles)
     model = model.to(device)
 
-    return mydata, valid_loader, model
+    return mydata, valid_ds_reducedLabel, model
 
 
-def raps(
-    model, mydata, calib_loader, 
-    kreg=None, lamda=None,
-    bestModel=True):
-    # RAPS
-    if kreg == -1.0:
-        kreg = None
-    if lamda == -1.0:
-        lamda = None
-        
-    cudnn.benchmark = True
-    # Get your model
-    _ = model.eval()
-    model.to(device)
-    # Conformalize model
-    cmodel = ConformalModel(
-        model, calib_loader, mydata.name, alpha=0.18, 
-        kreg=kreg, lamda=lamda,
-        lamda_criterion='size')
-
+def evaluate_RAPS(cmodel, mydata, test_ds, valid_test="valid"):
     correct_vague = 0.0
     correct_nonvague = 0.0
     vague_total = 0
     nonvague_total = 0
 
-    test_ds = mydata.test_loader.dataset
+    
     R = mydata.R
 
     #vague prediction
@@ -287,13 +285,54 @@ def raps(
     acc_2 = num_corr_2 / len(test_ds)
     acc_3 = num_corr_3 / len(test_ds)
     accs = [acc_1, acc_2, acc_3]
-    data_log(prec_recall_f, comp_GT_cnt, cmp_pred_cnt, js_result, accs, bestModel=bestModel)
+    data_log(prec_recall_f, comp_GT_cnt, cmp_pred_cnt, js_result, accs, valid_test=valid_test)
+
+
+def raps(
+    model, mydata, calib_valid_data, 
+    kreg=None, lamda=None,
+    alpha=0.1,
+    bestModel=True):
+    # RAPS
+    if kreg == -1.0:
+        kreg = None
+    if lamda == -1.0:
+        lamda = None
+        
+    cudnn.benchmark = True
+    # Get your model
+    _ = model.eval()
+    model.to(device)
+    
+    # divide validation data into calib_data and valid_data
+    total = len(calib_valid_data)
+    
+    num_val = 1000
+    calib_data, valid_data = torch.utils.data.random_split(calib_valid_data, [total-num_val, num_val])
+
+    # Initialize loaders 
+    calib_loader = torch.utils.data.DataLoader(calib_data, batch_size=64, shuffle=True, pin_memory=True)
+
+
+    # Conformalize model
+    cmodel = ConformalModel(
+        model, calib_loader, mydata.name, alpha=alpha, 
+        kreg=kreg, lamda=lamda,
+        lamda_criterion='size')
+
+    # validation set to select hyperparameters, such as alpha, kreg, and lambda
+    valid_data = AddLabelDataset(valid_data)
+    evaluate_RAPS(cmodel, mydata, valid_data, valid_test="valid")
+    
+    # test set for final results
+    test_ds = mydata.test_loader.dataset
+    evaluate_RAPS(cmodel, mydata, test_ds, valid_test="test")
 
 
 def main():
     ## Fix randomness
     set_random_seeds(seed=args.seed) # 42
-    mydata, valid_loader, model = make(args)
+    mydata, valid_data_one_label, model = make(args)
 
     saved_spec_dir_DNN = args.saved_spec_dir_DNN
     model_saved_base_path = os.path.join(base_path, saved_spec_dir_DNN)
@@ -306,7 +345,10 @@ def main():
     
     model_best_from_valid = copy.deepcopy(model)
     model_best_from_valid.load_state_dict(checkpoint["model_state_dict_best"]) 
-    raps(model_best_from_valid, mydata, valid_loader, kreg=args.kreg, lamda=args.lamda, bestModel=True)
+    raps(
+        model_best_from_valid, mydata, valid_data_one_label, 
+        kreg=args.kreg, lamda=args.lamda, 
+        alpha=args.alpha, bestModel=True)
 
 
 if __name__ == "__main__":

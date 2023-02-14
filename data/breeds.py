@@ -3,6 +3,8 @@ import sys
 # path_test = os.path.abspath(os.path.join(os.getcwd()))
 # print("#### ", path_test)
 sys.path.append(os.path.abspath(os.path.join(os.getcwd())))
+data_path = "/home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/"
+sys.path.insert(1, data_path)
 import time
 import math
 import random
