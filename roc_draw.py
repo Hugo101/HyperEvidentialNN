@@ -157,8 +157,8 @@ def draw_roc(
     
     fig.update_layout(
         title={
-        'text': f"M: {num_comp}, KernelSize:{gauss_kernel_size}",   # 标题名称
-        'y':0.85,  # 位置，坐标轴的长度看做1
+        # 'text': f"M: {num_comp}, KernelSize:{gauss_kernel_size}",   # 标题名称
+        'y':0.98,  # 位置，坐标轴的长度看做1
         'x':0.5,
         # 'xanchor': 'center',   # 相对位置
         # 'yanchor': 'top'
@@ -167,16 +167,29 @@ def draw_roc(
         yaxis_title='True Positive Rate',
         yaxis=dict(scaleanchor="x", scaleratio=1),
         xaxis=dict(constrain='domain'),
-        width=700, height=500,
+        width=500, height=500,
+        margin=dict(
+        l=5,
+        r=5,
+        b=10,
+        t=35,
+        pad=9
+        ),
+        font=dict(
+    #         family="Courier New, monospace",
+            size=20,
+    #         color="RebeccaPurple"
+        ),
         legend=dict(
             # yanchor="top",
             y=0.05,
             # xanchor="left",
-            x=0.4)
+            x=0.3,
+            font=dict(size= 15))
     )
 
     fig.show()
-    fig.write_image(f"{saved_roc_figures_dir}/{num_comp}M_KernelSize_{gauss_kernel_size}.png")
+    fig.write_image(f"{saved_roc_figures_dir}/{num_comp}M_KernelSize_{gauss_kernel_size}.png", scale=6)
 
 def make(args):
     mydata = None
