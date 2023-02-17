@@ -37,6 +37,48 @@ def entropy_SL(alpha):
     return entropy_s
 
 
+def vacuity_SL(alpha):
+    # Vacuity uncertainty
+    class_num = alpha.shape[1]
+    # alpha = mean + 2.0
+    S = torch.sum(alpha, dim=1, keepdims=True)
+    un_vacuity = class_num / S
+
+    return un_vacuity
+
+
+def Bal(b_i, b_j):
+    result = 1 - np.abs(b_i - b_j) / (b_i + b_j + 1e-7)
+    return result
+
+# def Bal(b_i, b_j):
+#     result = 1 - torch.abs(b_i - b_j) / (b_i + b_j + 1e-7)
+#     return result
+
+
+def dissonance_SL(alpha):
+    alpha = alpha.cpu().numpy()
+    evidence = alpha - 1
+    # alpha = mean + 2.0
+    S = np.sum(alpha, axis=1, keepdims=True)
+    belief = evidence / S
+    dis_un = np.zeros_like(S)
+    for k in range(belief.shape[0]):
+        for i in range(belief.shape[1]):
+            bi = belief[k][i]
+            term_Bal = 0.0
+            term_bj = 0.0
+            for j in range(belief.shape[1]):
+                if j != i:
+                    bj = belief[k][j]
+                    term_Bal += bj * Bal(bi, bj)
+                    term_bj += bj
+            dis_ki = bi * term_Bal / (term_bj + 1e-7)
+            dis_un[k] += dis_ki
+
+    return dis_un
+
+
 @torch.no_grad()
 def evaluate_set_DNN(model, data_loader, W, K, device):
     model.eval()
@@ -77,10 +119,11 @@ def evaluate_set_ENN(model, data_loader, W, K, device):
 
     outputs_all = torch.cat(outputs_all, dim=0)
     labels_all = torch.cat(labels_all, dim=0)
-    uncertain = entropy_SL(outputs_all + 1)
-    uncertain = uncertain.cpu().numpy()
-
-    return uncertain     
+    un_vacuity = vacuity_SL(outputs_all + 1)
+    un_vacuity = un_vacuity.cpu().numpy()
+    un_dis = dissonance_SL(outputs_all + 1)
+    
+    return un_vacuity, un_dis     
 
 
 
@@ -142,18 +185,23 @@ def draw_roc(
     metrics = []
     is_vague, vaguenesses = evaluate_set_HENN(model_HENN, data_loader, W, num_singles, device)
     metrics.append(vaguenesses)
-    entropy_ENN = evaluate_set_ENN(model_ENN, data_loader, W, num_singles, device)
-    metrics.append(entropy_ENN)
+    
+    vacuity_ENN, diss_ENN = evaluate_set_ENN(model_ENN, data_loader, W, num_singles, device)
+    metrics.append(vacuity_ENN)
+    metrics.append(diss_ENN)
+    
     entropy_DNN = evaluate_set_DNN(model_DNN, data_loader, W, num_singles, device)
     metrics.append(entropy_DNN)
-    tag = ["Vagueness-HENN", "Entropy-ENN", "Entropy-DNN"]
-    for i in range(3):
+    
+    tag = ["Vagueness-HENN", "Vacuity-ENN", "Dissonance-ENN", "Entropy-DNN"]
+    
+    for i in range(len(metrics)):
         fpr, tpr, _ = roc_curve(is_vague, metrics[i])
         auc_score = roc_auc_score(is_vague, metrics[i])
 
         # name = f"{y_onehot.columns[i]} (AUC={auc_score:.2f})"
         name = f"{tag[i]} (AUC={auc_score:.2f})"
-        fig.add_trace(go.Scatter(x=fpr, y=tpr, name=name, mode='lines'))
+        fig.add_trace(go.Scatter(x=fpr, y=tpr, name=name, mode='lines', line=dict(width=4)))
     
     fig.update_layout(
         title={
@@ -306,7 +354,7 @@ if __name__ == "__main__":
         type=str, help="where results will be saved."
     )
     parser.add_argument(
-        "--saved_spec_dir", default="Tiny/Statistics", 
+        "--saved_spec_dir", default="CIFAR100/Statistics", 
         type=str, help="specific experiment path."
         )
     parser.add_argument('--gpu', default=0, type=int, help='GPU ID')
