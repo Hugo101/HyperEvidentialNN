@@ -21,7 +21,8 @@ from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
-from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16
+from data.mnist import MNIST
+from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_LeNet
 # from backbones import EfficientNet_pretrain, ResNet50
 from train import train_model
 from test import evaluate_vague_nonvague
@@ -79,6 +80,17 @@ def make(args):
             comp_el_size=args.num_subclasses,
             )
 
+    elif args.dataset == "mnist":
+        mydata = MNIST(
+            args.data_dir,
+            batch_size=args.batch_size,
+            blur=args.blur,
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            )
+
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
@@ -90,6 +102,8 @@ def make(args):
         model = HENN_ResNet50(num_classes_both)
     elif args.backbone == "VGG16":
         model = HENN_VGG16(num_classes_both)
+    elif args.backbone == "LeNet":
+        model = HENN_LeNet(num_classes_both)
     else:
         print(f"### ERROR {args.dataset}: The backbone {args.backbone} is invalid!")
 
