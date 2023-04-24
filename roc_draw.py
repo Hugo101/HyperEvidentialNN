@@ -121,9 +121,9 @@ def evaluate_set_ENN(model, data_loader, W, K, device):
     labels_all = torch.cat(labels_all, dim=0)
     un_vacuity = vacuity_SL(outputs_all + 1)
     un_vacuity = un_vacuity.cpu().numpy()
-    un_dis = dissonance_SL(outputs_all + 1)
+    # un_dis = dissonance_SL(outputs_all + 1)
     
-    return un_vacuity, un_dis     
+    return un_vacuity
 
 
 
@@ -186,14 +186,14 @@ def draw_roc(
     is_vague, vaguenesses = evaluate_set_HENN(model_HENN, data_loader, W, num_singles, device)
     metrics.append(vaguenesses)
     
-    vacuity_ENN, diss_ENN = evaluate_set_ENN(model_ENN, data_loader, W, num_singles, device)
+    vacuity_ENN = evaluate_set_ENN(model_ENN, data_loader, W, num_singles, device)
     metrics.append(vacuity_ENN)
-    metrics.append(diss_ENN)
+    # metrics.append(diss_ENN)
     
     entropy_DNN = evaluate_set_DNN(model_DNN, data_loader, W, num_singles, device)
     metrics.append(entropy_DNN)
     
-    tag = ["Vagueness-HENN", "Vacuity-ENN", "Dissonance-ENN", "Entropy-DNN"]
+    tag = ["Vagueness-HENN", "Uncertainty-ENN", "Entropy-DNN"]
     
     for i in range(len(metrics)):
         fpr, tpr, _ = roc_curve(is_vague, metrics[i])
@@ -373,14 +373,24 @@ if __name__ == "__main__":
     
     opt["saved_roc_figures_dir"] = saved_path
     
-    spec_dir = f"20M_15M_10M_357ker_sweep_HENNexp5_pytorchKer/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_HENNexp5/lr_1e-05_EntropyLam_0.1"
-    opt["base_path_spec_HENN"] = os.path.join(base_path, spec_dir)
-    
-    spec_dir = f"20M_15M_10M_357ker_sweep_ENN_pytorchKer_UCE/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_ENN/1e-05"
-    opt["base_path_spec_ENN"] = os.path.join(base_path, spec_dir)
-    
-    spec_dir = f"20M_15M_10M_357ker_sweep_DNN_pytorchKer/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_DNN/1e-05"
-    opt["base_path_spec_DNN"] = os.path.join(base_path, spec_dir)
+    if args.dataset == "tinyimagenet":
+        spec_dir = f"20M_15M_10M_357ker_sweep_HENNexp5_pytorchKer/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_HENNexp5/lr_1e-05_EntropyLam_0.1"
+        opt["base_path_spec_HENN"] = os.path.join(base_path, spec_dir)
+        
+        spec_dir = f"20M_15M_10M_357ker_sweep_ENN_pytorchKer_UCE/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_ENN/1e-05"
+        opt["base_path_spec_ENN"] = os.path.join(base_path, spec_dir)
+        
+        spec_dir = f"20M_15M_10M_357ker_sweep_DNN_pytorchKer/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_DNN/1e-05"
+        opt["base_path_spec_DNN"] = os.path.join(base_path, spec_dir)
+    elif args.dataset == "cifar100":
+        spec_dir = f"20M_15M_10M_357ker_sweep_HENNexp5_pytorchKer_V2/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_HENNexp5/lr_1e-05_EntropyLam_0.1"
+        opt["base_path_spec_HENN"] = os.path.join(base_path, spec_dir)
+        
+        spec_dir = f"20M_15M_10M_357ker_sweep_ENN_pytorchKer_V2_UCE/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_ENN/1e-05"
+        opt["base_path_spec_ENN"] = os.path.join(base_path, spec_dir)
+        
+        spec_dir = f"20M_15M_10M_357ker_sweep_DNN_pytorchKer_V2/{args.num_comp}M_ker{args.gauss_kernel_size}_sweep_DNN/1e-05"
+        opt["base_path_spec_DNN"] = os.path.join(base_path, spec_dir)
     
     
     # convert args from Dict to Object
