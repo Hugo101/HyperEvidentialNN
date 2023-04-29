@@ -2,6 +2,10 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from torch.distributions.dirichlet import Dirichlet
+from torch import linalg as LA
+from common_tools import set_device
+from helper_functions import one_hot_embedding, multi_hot_embedding
+from GDD import GroupDirichlet
 from common_tools import set_device
 
 kl_loss = nn.KLDivLoss(reduction="batchmean")
@@ -293,10 +297,106 @@ def KL(alpha, device):
     return kl
 
 
-def lossFunc(r, one_hot_labels, base_rate, num_single, annealing_coefficient):
-    alpha = torch.add(r, torch.mul(num_single, base_rate)) # num_single:W
-    squared_loss = squaredLoss(alpha, one_hot_labels)
-    # kl = KL(alpha)
-    # return torch.mean(squared_loss + (annealing_coefficient * kl))
-    # return squared_loss + (annealing_coefficient * kl), squared_loss, kl
-    return torch.mean(squared_loss)
+
+def find_partition(partition_list, class_id):
+    n_pars = len(partition_list)
+    for i in range(n_pars):
+        partition = partition_list[i]
+        if class_id in partition:
+            return i
+
+
+def henn_gdd(
+    evidence, 
+    target,
+    R,
+    epoch, 
+    num_single, 
+    entropy_lam, 
+    l2_lam, 
+    device=None
+    ):
+    if not device:
+        device = set_device()
+
+    evidence_single = evidence[:num_single]
+    alpha = evidence_single + 1
+    evidence_comps = evidence[num_single:]
+    
+    flag_singleton = True
+    # type 1: singleton Dirichlet
+    if target < num_single:
+        if len(alpha.shape) == 1:
+            alpha = alpha.unsqueeze(dim=0)
+        y = one_hot_embedding(target, num_single, device)
+        ll_mean, kl_mean = edl_loss(
+            torch.digamma, y, alpha, num_single, 
+            kl_reg=False, 
+            device=device
+            )
+        
+        # Entropy Dirichlet
+        if not entropy_lam:
+            entropy = torch.tensor(0.).cuda()
+        else:
+            entropy = Dirichlet(alpha).entropy().mean()
+        
+        if not l2_lam:
+            l2_norm = torch.tensor(0.).cuda()
+        else:
+            l2_norm = LA.vector_norm(evidence_comps)
+        
+        loss = ll_mean - entropy_lam * entropy + l2_lam * l2_norm
+        return loss, ll_mean.detach(), entropy.detach(), l2_norm.detach(), flag_singleton
+        # return torch.tensor(1).cuda(), torch.tensor(1).cuda(), torch.tensor(0.).cuda(), torch.tensor(0.).cuda() # debugging
+    else:
+        flag_singleton = False
+        # type 2: GDD
+        # multi_hot_labels = multi_hot_embedding(target, R, num_single, device) # [0,1,0,1,0,0]
+        comp_labels = R[target] # [1,3]
+        unique_comp_sets = R[num_single:]
+        uniques_elements_comp = sum(unique_comp_sets, [])
+        comp_rest_labels = list(set(range(num_single)) - set(uniques_elements_comp)) # [0,2,4,5]
+        unique_comp_sets.append(comp_rest_labels)
+        # tmpp = torch.zeros_like(evidence[target])
+        evidence_comps_custom = torch.cat([evidence_comps, torch.tensor([0.]).cuda()])
+        m = GroupDirichlet(alpha, evidence_comps_custom, unique_comp_sets)
+        
+        # comp_rest_labels = list(set(range(num_single)) - set(comp_labels)) # [0,2,4,5]
+        # partition_list = [comp_labels, comp_rest_labels]
+        # eta = len(partition_list)
+        # # evidence_comps_custom = torch.tensor([evidence[target], 0])
+        # tmpp = torch.zeros_like(evidence[target])
+        # evidence_comps_custom = torch.stack([evidence[target], tmpp], dim=0)
+        # m = GroupDirichlet(alpha, evidence_comps_custom, partition_list)
+
+        # beta = []
+        # for i in range(eta):
+        #     # print(f"**** partition:{i}")
+        #     par_idx = partition_list[i]
+        #     alpha_sum = torch.sum(alpha[par_idx])
+        #     # print(alpha_sum, evidence_comps[i])
+        #     beta_tmp = alpha_sum + evidence_comps_custom[i]
+        #     beta.append(beta_tmp)
+        # beta_tensor = torch.stack(beta, dim=0)
+
+        # UCE loss
+        # uce_loss = torch.digamma(torch.sum(beta_tensor)) - torch.digamma(beta_tensor[0]) #! type1
+        beta_curr_part = torch.sum(alpha[comp_labels]) + evidence[target] #! type2
+        uce_loss = torch.digamma(torch.sum(alpha) + torch.sum(evidence_comps))
+        - torch.digamma(beta_curr_part)  #! type2
+        
+        if not entropy_lam:
+            entropy = torch.tensor(0.).cuda()
+        else:
+            entropy = m.entropy()
+        
+        # entropy = torch.tensor(0.).cuda() # for debugging
+        # l2 norm
+        #[10, 12, 13] if  target:11 -> torch.tensor([11]) 
+        # rest_comp_idx = list(set(range(num_single, len(R))) - set([target.item()])) # [10,12,13]
+        # rest_comp_idx_update = [i-num_single for i in rest_comp_idx] # [0,2,3]
+        # l2_norm = LA.vector_norm(evidence_comps[rest_comp_idx_update])
+        
+        loss = uce_loss - entropy_lam * entropy
+        return loss, uce_loss.detach(), entropy.detach(), torch.tensor(0.).cuda(), flag_singleton

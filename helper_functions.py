@@ -10,6 +10,13 @@ def one_hot_embedding(labels, num_classes=10, device='cpu'):
     return y[labels]
 
 
+def multi_hot_embedding(labels, R, num_classes=10, device='cpu'):
+    # Convert to One Hot Encoding
+    y = torch.eye(num_classes, device=device)
+    composite_labels = R[labels]
+    return y[composite_labels].sum(dim=0)
+
+
 class AddLabelDataset(Dataset):
     def __init__(self, dataset):
         self.dataset = dataset
