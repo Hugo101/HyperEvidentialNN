@@ -17,7 +17,8 @@ from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
-from backbones import EfficientNet_pretrain, ResNet50, VGG16
+from data.mnist import MNIST
+from backbones import EfficientNet_pretrain, ResNet50, VGG16, LeNet
 from helper_functions import js_subset, acc_subset
 
 
@@ -421,6 +422,18 @@ def make(args):
             seed=args.seed,
             comp_el_size=args.num_subclasses,
             )
+        
+    elif args.dataset == "mnist":
+        mydata = MNIST(
+            args.data_dir, 
+            batch_size=args.batch_size,
+            duplicate=True,  #key duplicate
+            blur=args.blur,
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            )
     
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
@@ -432,6 +445,8 @@ def make(args):
         model = ResNet50(num_singles)
     elif args.backbone == "VGG16":
         model = VGG16(num_singles)
+    elif args.backbone == "LeNet":
+        model = LeNet(num_singles)
     else:
         print(f"### ERROR: The backbone {args.backbone} is invalid!")
     model = model.to(device)
