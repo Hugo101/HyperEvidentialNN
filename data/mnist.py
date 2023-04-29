@@ -6,49 +6,15 @@ import os
 import torch
 from torchvision import datasets, transforms, utils
 from torch.utils.data import sampler, random_split, DataLoader
-from torch.utils.data import TensorDataset, Dataset
 from torch.utils.data import Subset, ConcatDataset
 from PIL import Image
 import random
-
-import sys
-data_path = "/home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/"
-sys.path.insert(1, data_path)
-from helper_functions import CustomDataset, AddLabelDataset
-import csv
-import math  
+import math
 import time
 from sklearn.model_selection import train_test_split
 from collections import defaultdict
 
-
-def have_dummy(row):
-    s = row[0]+row[1]
-    return ('dummy' in s)
-
-def remove_dummy(tab):
-    new_tab = []
-    for row in tab:
-        if have_dummy(row)==False:
-            new_tab.append(row)
-    return new_tab
-
-def get_candidate_vague_classes(parent_to_subclasses, num_subs_low=2, num_subs_high=3):
-    '''
-    # superclasses_multiple
-    # ['n04371563',
-    #  'n03419014',
-    #  'n04490091',
-    #  'n02924116',
-    #  'n02858304',
-    #  'n04379243',
-    # ]
-    '''
-    superclasses_multiple = [] # candidate superclasses 
-    for superClass, subClasses in parent_to_subclasses.items():    
-        if len(subClasses) in [num_subs_low, num_subs_high]:
-            superclasses_multiple.append(superClass)
-    return superclasses_multiple  # length: 29
+from helper_functions import CustomDataset, AddLabelDataset
 
 
 def get_sample_idx_by_class(dataset, num_classes):
@@ -154,7 +120,7 @@ class MNIST():
         self.batch_size = batch_size
         self.pretrain = pretrain
         self.num_workers = num_workers
-        self.img_size = 32 #28
+        # self.img_size = 32 #28
         self.num_classes = 10 #K  
         self.num_comp = num_comp
         self.kappa = self.num_classes + self.num_comp

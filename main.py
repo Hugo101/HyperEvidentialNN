@@ -256,13 +256,6 @@ def main(args):
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, bestModel=True)
 
-    # a_copy = a
-    # for element in range(num_comp):
-    #     sum_base_rates = torch.zeros(1).to(device)
-    #     for l in vague_classes_ids[element]:
-    #         sum_base_rates += a[l]
-    #     a_copy = torch.cat((a_copy, sum_base_rates.view(1)))
-
 
 if __name__ == "__main__":
     args = parser.parse_args()
