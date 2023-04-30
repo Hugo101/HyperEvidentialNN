@@ -384,8 +384,7 @@ def henn_gdd(
         # UCE loss
         # uce_loss = torch.digamma(torch.sum(beta_tensor)) - torch.digamma(beta_tensor[0]) #! type1
         beta_curr_part = torch.sum(alpha[comp_labels]) + evidence[target] #! type2
-        uce_loss = torch.digamma(torch.sum(alpha) + torch.sum(evidence_comps))
-        - torch.digamma(beta_curr_part)  #! type2
+        uce_loss = torch.digamma(torch.sum(alpha) + torch.sum(evidence_comps)) - torch.digamma(beta_curr_part)  #! type2
         
         if not entropy_lam:
             entropy = torch.tensor(0.).cuda()

@@ -42,7 +42,9 @@ def test_vague_result_log(
         f"{tag} CmpFscor": prec_recall_f[2], 
         f"{tag} acc": acc,
         f"{tag} js_comp": js_comp,
-        f"{tag} js_singl": js_singl}, step=epoch)
+        f"{tag} js_singl": js_singl, 
+        f"{tag} epoch": epoch, 
+        })
     print(f"{tag} acc: {acc:.4f},\n\
         JS(O_V_N): {js_result[0]:.4f}, {js_result[1]:.4f}, {js_result[2]:.4f},\n\
         P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
@@ -74,7 +76,8 @@ def test_nonvague_result_log(
     wandb.log({
         f"{tag} nonVagueAcc1": nonvague_acc1, 
         f"{tag} nonVagueAcc(notUsed)": nonvague_acc, 
-        f"{tag} nonVagueAccSingl": nonvague_acc_singl}, step=epoch)
+        f"{tag} nonVagueAccSingl": nonvague_acc_singl,
+        f"{tag} epoch": epoch})
     print(f"{tag} nonVagueAcc1: {nonvague_acc1:.4f},\n\
         nonVagueAcc: {nonvague_acc:.4f},\n\
         nonVagueAccSingl: {nonvague_acc_singl:.4f}\n")
