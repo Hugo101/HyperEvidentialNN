@@ -65,6 +65,13 @@ parser.add_argument(
     type=float, help="weight for regularizer: entropy"
 )
 
+
+parser.add_argument(
+    '--entropy_lam_Dir', default=0.0,
+    type=float, help="weight for regularizer: entropy of Dirichlet distribution for GDD"
+)
+
+
 # parser.add_argument(
 #     '--epochs_stage_1', default=25, 
 #     type=int, help='the first stage of epochs'

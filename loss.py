@@ -314,6 +314,7 @@ def henn_gdd(
     num_single, 
     entropy_lam, 
     l2_lam, 
+    entropy_lam_Dir, 
     device=None
     ):
     if not device:
@@ -347,7 +348,7 @@ def henn_gdd(
             l2_norm = LA.vector_norm(evidence_comps)
         
         loss = ll_mean - entropy_lam * entropy + l2_lam * l2_norm
-        return loss, ll_mean.detach(), entropy.detach(), l2_norm.detach(), flag_singleton
+        return loss, ll_mean.detach(), entropy.detach(), l2_norm.detach(), torch.tensor(0.).cuda(), flag_singleton
         # return torch.tensor(1).cuda(), torch.tensor(1).cuda(), torch.tensor(0.).cuda(), torch.tensor(0.).cuda() # debugging
     else:
         flag_singleton = False
@@ -391,6 +392,16 @@ def henn_gdd(
         else:
             entropy = m.entropy()
         
+        # if not l2_lam:
+        #     l2_norm = torch.tensor(0.).cuda()
+        # else:
+        #     l2_norm = LA.vector_norm(evidence_comps)
+            
+        if not entropy_lam_Dir:
+            entropy_Dir = torch.tensor(0.).cuda()
+        else:
+            entropy_Dir = Dirichlet(alpha).entropy().mean()
+
         # entropy = torch.tensor(0.).cuda() # for debugging
         # l2 norm
         #[10, 12, 13] if  target:11 -> torch.tensor([11]) 
@@ -398,5 +409,5 @@ def henn_gdd(
         # rest_comp_idx_update = [i-num_single for i in rest_comp_idx] # [0,2,3]
         # l2_norm = LA.vector_norm(evidence_comps[rest_comp_idx_update])
         
-        loss = uce_loss - entropy_lam * entropy
-        return loss, uce_loss.detach(), entropy.detach(), torch.tensor(0.).cuda(), flag_singleton
+        loss = uce_loss - entropy_lam * entropy - entropy_lam_Dir * entropy_Dir
+        return loss, uce_loss.detach(), entropy.detach(), torch.tensor(0.).cuda(), entropy_Dir.detach(), flag_singleton

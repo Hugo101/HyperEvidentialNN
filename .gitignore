@@ -33,3 +33,7 @@ data/__pycache__/breeds.cpython-310.pyc
 data/__pycache__/cifar100.cpython-310.pyc
 data/__pycache__/mnist.cpython-310.pyc
 data/__pycache__/tinyImageNet.cpython-310.pyc
+__pycache__/GDD_evaluate.cpython-310.pyc
+__pycache__/GDD_test.cpython-310.pyc
+__pycache__/GDD_train.cpython-310.pyc
+__pycache__/GDD.cpython-310.pyc
