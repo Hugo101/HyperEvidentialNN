@@ -53,7 +53,7 @@ def train_valid_split(data, valid_perc=0.1, seed=42):
 def make_vague_samples(
     dataset, num_single, num_single_comp, vague_classes_ids, 
     blur=True, gray=False,
-    gauss_kernel_size=5, data_train=True):
+    gauss_kernel_size=5, data_train=1):
     trans_blur = None
     if blur:
         sigma_v = 0.3 * ((gauss_kernel_size - 1) * 0.5 - 1) + 0.8
@@ -66,10 +66,12 @@ def make_vague_samples(
                 ])
     all_sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
 
-    if data_train:
-        num_samples_subclass = 5400 # for MNIST train
-    else:
-        num_samples_subclass = 600  # for MNIST valid / test
+    if data_train==1:
+        num_samples_subclass = 9000 # for MNIST train
+    elif data_train == 2:
+        num_samples_subclass = 900  # for MNIST valid
+    elif data_train == 3:
+        num_samples_subclass = 1500  # for MNIST test
     
     total_vague_examples_ids = []
     total_vague_examples = []
@@ -175,7 +177,7 @@ class MNIST():
             blur=self.blur,
             gray=self.gray,
             gauss_kernel_size=self.gauss_kernel_size,
-            data_train=True)
+            data_train=1)
         valid_ds = make_vague_samples(
             valid_ds_original_n,
             self.num_classes, self.kappa,
@@ -183,7 +185,7 @@ class MNIST():
             blur=self.blur,
             gray=self.gray,
             gauss_kernel_size=self.gauss_kernel_size,
-            data_train=False)
+            data_train=2)
         test_ds = make_vague_samples(
             test_ds_original_n,
             self.num_classes, self.kappa,
@@ -191,7 +193,7 @@ class MNIST():
             blur=self.blur,
             gray=self.gray,
             gauss_kernel_size=self.gauss_kernel_size,
-            data_train=False)
+            data_train=3)
         
         if self.pretrain:
             norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
