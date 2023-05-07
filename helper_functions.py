@@ -3,6 +3,16 @@ from torch.utils.data import DataLoader, TensorDataset, Dataset
 import matplotlib.pyplot as plt
 from sklearn import metrics
 from copy import deepcopy
+import numpy as np
+
+def confidence_interval(accuracies):
+    accuracies = np.array(accuracies)
+    # metaval_accuracies = np.concatenate(accuracies, axis=0)
+    # means = np.mean(metaval_accuracies, 0)
+    stds = np.std(accuracies, 0)
+    ci95 = 1.96 * stds / np.sqrt(len(accuracies))
+    return stds, ci95
+
 
 def one_hot_embedding(labels, num_classes=10, device='cpu'):
     # Convert to One Hot Encoding

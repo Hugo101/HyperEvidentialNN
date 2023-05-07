@@ -18,16 +18,16 @@ import torch.nn.functional as F
 
 from config_args import parser  
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
-# from data.tinyImageNet import tinyImageNetVague
-# from data.cifar100 import CIFAR100Vague
-# from data.breeds import BREEDSVague
+from data.tinyImageNet import tinyImageNetVague
+from data.cifar100 import CIFAR100Vague
+from data.breeds import BREEDSVague
 from data.mnist import MNIST
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_LeNet_v2
 # from backbones import EfficientNet_pretrain, ResNet50
 from GDD_train import train_model
 from GDD_test import evaluate_vague_nonvague
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
-from loss import henn_gdd
+from loss import henn_gdd, unified_UCE_loss
 
 
 def make(args):
@@ -39,31 +39,31 @@ def make(args):
     milestone1 = args.milestone1
     milestone2 = args.milestone2
     
-    # if args.dataset == "tinyimagenet":
-    #     mydata = tinyImageNetVague(
-    #         args.data_dir, 
-    #         num_comp=args.num_comp, 
-    #         batch_size=args.batch_size,
-    #         imagenet_hierarchy_path=args.data_dir,
-    #         blur=args.blur,
-    #         gray=args.gray,
-    #         gauss_kernel_size=args.gauss_kernel_size,
-    #         pretrain=args.pretrain,
-    #         num_workers=args.num_workers,
-    #         seed=args.seed)
+    if args.dataset == "tinyimagenet":
+        mydata = tinyImageNetVague(
+            args.data_dir, 
+            num_comp=args.num_comp, 
+            batch_size=args.batch_size,
+            imagenet_hierarchy_path=args.data_dir,
+            blur=args.blur,
+            gray=args.gray,
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed)
 
-    # elif args.dataset == "cifar100":
-    #     mydata = CIFAR100Vague(
-    #         args.data_dir, 
-    #         num_comp=args.num_comp, 
-    #         batch_size=args.batch_size,
-    #         blur=args.blur,
-    #         gauss_kernel_size=args.gauss_kernel_size,
-    #         pretrain=args.pretrain,
-    #         num_workers=args.num_workers,
-    #         seed=args.seed,
-    #         comp_el_size=args.num_subclasses,
-    #         )
+    elif args.dataset == "cifar100":
+        mydata = CIFAR100Vague(
+            args.data_dir, 
+            num_comp=args.num_comp, 
+            batch_size=args.batch_size,
+            blur=args.blur,
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            comp_el_size=args.num_subclasses,
+            )
 
     # elif args.dataset in ["living17", "nonliving26", "entity13", "entity30"]:
     #     data_path_base = os.path.join(args.data_dir, "ILSVRC/ILSVRC")
@@ -112,25 +112,22 @@ def make(args):
 
     model = model.to(args.device)
 
-    if use_uncertainty:
-        if args.digamma:
-            print("### Loss type: edl_digamma_loss")
-            criterion = edl_digamma_loss
-        elif args.log:
-            print("### Loss type: edl_log_loss")
-            criterion = edl_log_loss
-        elif args.mse:
-            print("### Loss type: edl_mse_loss")
-            criterion = edl_mse_loss
-        elif args.henn_gdd:
-            print("### Loss type: GDD")
-            criterion = henn_gdd
-        else:
-            parser.error("--uncertainty requires --mse, --log or --digamma.")
+    if args.digamma:
+        print("### Loss type: edl_digamma_loss")
+        criterion = edl_digamma_loss
+    elif args.log:
+        print("### Loss type: edl_log_loss")
+        criterion = edl_log_loss
+    elif args.mse:
+        print("### Loss type: edl_mse_loss")
+        criterion = edl_mse_loss
+    elif args.henn_gdd:
+        print("### Loss type: GDD")
+        # criterion = henn_gdd
+        criterion = unified_UCE_loss
     else:
-        print("### Loss type: CrossEntropy (no uncertainty)")
-        criterion = nn.CrossEntropyLoss()
-    
+        parser.error("--uncertainty requires --mse, --log or --digamma.")
+
     if args.optimizer == "Adam":
         optimizer = optim.Adam(model.parameters(), lr=args.init_lr)
     elif args.optimizer == "SGD":
@@ -184,7 +181,7 @@ def main(args):
 
     if args.train:
         start = time.time()
-        model, model_best, epoch_best = train_model(
+        model, model_best, epoch_best, model_best_GT, epoch_best_GT = train_model(
                                             model,
                                             mydata,
                                             num_classes,
@@ -200,19 +197,19 @@ def main(args):
             "model_state_dict": model.state_dict(),
             "model_state_dict_best": model_best.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
+            "epoch_best_GT": epoch_best_GT,
+            "model_state_dict_best_GT": model_best_GT.state_dict(),
         }
 
-        if args.use_uncertainty:
-            if args.digamma:
-                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
-            if args.log:
-                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_log.pt")
-            if args.mse:
-                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
-            if args.henn_gdd:
-                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_gdd.pt")
-        else:
-            saved_path = os.path.join(base_path_spec_hyper, "model_CrossEntropy.pt")
+        if args.digamma:
+            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
+        if args.log:
+            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_log.pt")
+        if args.mse:
+            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
+        if args.henn_gdd:
+            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_gdd.pt")
+
         torch.save(state, saved_path)
         print(f"Saved: {saved_path}")
         end = time.time()
@@ -221,52 +218,58 @@ def main(args):
         print(f"## No training, load trained model directly")
 
     if args.test:
-        use_uncertainty = args.use_uncertainty
-        if use_uncertainty:
-            if args.digamma:
-                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
-            if args.log:
-                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_log.pt")
-            if args.mse:
-                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
-            if args.henn_gdd:
-                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_gdd.pt")
-        else:
-            saved_path = os.path.join(base_path_spec_hyper, "model_CrossEntropy.pt")
+        if args.digamma:
+            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
+        if args.log:
+            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_log.pt")
+        if args.mse:
+            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
+        if args.henn_gdd:
+            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_gdd.pt")
         
         checkpoint = torch.load(saved_path, map_location=device)
         model.load_state_dict(checkpoint["model_state_dict"])
 
         model_best_from_valid = copy.deepcopy(model)
         model_best_from_valid.load_state_dict(checkpoint["model_state_dict_best"]) 
+        
+        model_best_from_valid_GT = copy.deepcopy(model)
+        model_best_from_valid_GT.load_state_dict(checkpoint["model_state_dict_best_GT"]) 
 
-        # Test set
+        #! Test set
         # #Evaluation, Inference
         print(f"\n### Evaluate the model after all epochs:")
         evaluate_vague_nonvague(
             model, mydata.test_loader, mydata.R, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device)
+            None, device, train_flag=3)
 
-        print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
+        print(f"\n### Use the model selected from Valid set in Epoch {checkpoint['epoch_best']}:")
         evaluate_vague_nonvague(
             model_best_from_valid, mydata.test_loader, mydata.R, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, bestModel=True)
+            None, device, bestModel=True, train_flag=3)
 
-        # Training set for debugging
-        # #Evaluation, Inference
-        print(f"\n### (TrainingSet) Evaluate the model after all epochs:")
+        print(f"\n### Use the model selected from Valid set (GT) in Epoch {checkpoint['epoch_best_GT']}:")
         evaluate_vague_nonvague(
-            model, mydata.train_loader, mydata.R, 
+            model_best_from_valid_GT, mydata.test_loader, mydata.R, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, train_flag=True)
+            None, device, bestModelGT=True, train_flag=3)
+        
 
-        print(f"\n### (TrainingSet) Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
-        evaluate_vague_nonvague(
-            model_best_from_valid, mydata.train_loader, mydata.R, 
-            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, bestModel=True, train_flag=True)
+        # #! Training set for debugging
+        # # #Evaluation, Inference
+        # print(f"\n### (TrainingSet) Evaluate the model after all epochs:")
+        # evaluate_vague_nonvague(
+        #     model, mydata.train_loader, mydata.R, 
+        #     mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
+        #     None, device, train_flag=1)
+
+        # print(f"\n### (TrainingSet) Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
+        # evaluate_vague_nonvague(
+        #     model_best_from_valid, mydata.train_loader, mydata.R, 
+        #     mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
+        #     None, device, bestModel=True, train_flag=1)
 
 
 if __name__ == "__main__":
@@ -280,7 +283,7 @@ if __name__ == "__main__":
     base_path = os.path.join(args.output_folder, args.saved_spec_dir)
     create_path(base_path)
 
-    config_file = os.path.join(base_path, "config.yml")
+    config_file = os.path.join(base_path, "config_GDD.yml")
     CONFIG = yaml.load(open(config_file), Loader=yaml.FullLoader)
     opt.update(CONFIG)
 

@@ -6,32 +6,34 @@ from sklearn.metrics import precision_score, recall_score, f1_score
 from collections import Counter
 import wandb
 
-from helper_functions import projection_prob, meanGDD, js_subset, vague_belief_mass
+from helper_functions import projection_prob, meanGDD, js_subset, vague_belief_mass, confidence_interval
 
 
-def test_vague_result_log(
+def evaluate_vague_result_log(
     js_result,
     prec_recall_f,
     acc,
+    std, ci95,
     js_comp, js_singl,
-    epoch, bestModel=False, train_flag=False):
+    epoch, 
+    bestModel=False, bestModelGT=False, train_flag=1):
     
-    if not train_flag:
-        if bestModel:
-            tag = "TestB"
-        else:
-            if epoch is None:
-                tag = "TestF"
-            else:
-                tag = "Test"
+    if train_flag == 1:
+        tag_tmp = "Train"
+    elif train_flag == 2:
+        tag_tmp = "Valid"
     else:
-        if bestModel:
-            tag = "TrainB"
+        tag_tmp = "Test"
+    
+    if bestModel:
+        tag = f"{tag_tmp}B"
+    if bestModelGT:
+        tag = f"{tag_tmp}BGT"
+    if not bestModel and not bestModelGT:
+        if epoch is None:
+            tag = f"{tag_tmp}F"
         else:
-            if epoch is None:
-                tag = "TrainF"
-            else:
-                tag = "Train"
+            tag = tag_tmp
 
     wandb.log({
         f"{tag} JSoverall": js_result[0], 
@@ -41,6 +43,8 @@ def test_vague_result_log(
         f"{tag} CmpRecal": prec_recall_f[1], 
         f"{tag} CmpFscor": prec_recall_f[2], 
         f"{tag} acc": acc,
+        f"{tag} std": std,
+        f"{tag} ci95": ci95,
         f"{tag} js_comp": js_comp,
         f"{tag} js_singl": js_singl, 
         f"{tag} epoch": epoch, 
@@ -50,35 +54,36 @@ def test_vague_result_log(
         P_R_F_compGTcnt_cmpPREDcnt: {prec_recall_f}\n")
 
 
-def test_nonvague_result_log(
+def evaluate_nonvague_result_log(
     nonvague_acc1, #from meanGDD
     nonvague_acc,  #from projection_prob
     nonvague_acc_singl, #from projection_prob based on singleton
-    epoch, bestModel=False, train_flag=False):
+    epoch, 
+    bestModel=False, bestModelGT=False, train_flag=1):
     
-    if not train_flag:
-        if bestModel:
-            tag = "TestB"
-        else:
-            if epoch is None:
-                tag = "TestF"
-            else:
-                tag = "Test"
+    if train_flag == 1:
+        tag_tmp = "Train"
+    elif train_flag == 2:
+        tag_tmp = "Valid"
     else:
-        if bestModel:
-            tag = "TrainB"
+        tag_tmp = "Test"
+    
+    if bestModel:
+        tag = f"{tag_tmp}B"
+    if bestModelGT:
+        tag = f"{tag_tmp}BGT"
+    if not bestModel and not bestModelGT:
+        if epoch is None:
+            tag = f"{tag_tmp}F"
         else:
-            if epoch is None:
-                tag = "TrainF"
-            else:
-                tag = "Train"
+            tag = tag_tmp
     
     wandb.log({
-        f"{tag} nonVagueAcc1": nonvague_acc1, 
+        f"{tag} nonVagueAccGDD": nonvague_acc1, 
         f"{tag} nonVagueAcc(notUsed)": nonvague_acc, 
         f"{tag} nonVagueAccSingl": nonvague_acc_singl,
         f"{tag} epoch": epoch})
-    print(f"{tag} nonVagueAcc1: {nonvague_acc1:.4f},\n\
+    print(f"{tag} nonVagueAccGDD: {nonvague_acc1:.4f},\n\
         nonVagueAcc: {nonvague_acc:.4f},\n\
         nonVagueAccSingl: {nonvague_acc_singl:.4f}\n")
 
@@ -102,25 +107,31 @@ def evaluate_vague_nonvague(
     epoch, 
     device, 
     bestModel=False,
-    train_flag=False):
+    bestModelGT=False,
+    train_flag=1):
     model.eval()
     outputs_all = []
     labels_all = [] # including composite labels
     true_labels_all = [] # singleton ground truth
     preds_all = []
     correct = 0
+    accs_batch = []
     for batch in val_loader:
         images, single_labels_GT, labels = batch
         images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         single_labels_GT = single_labels_GT.to(device, non_blocking=True)
         output = model(images)
         preds = output.argmax(dim=1)
-        correct += torch.sum(preds == labels)
+        correct_batch = torch.sum(preds == labels)
+        accs_batch.append(correct_batch.item() / len(labels))
+        correct += correct_batch
         outputs_all.append(output)
         labels_all.append(labels)
         true_labels_all.append(single_labels_GT)
         preds_all.append(preds)
 
+    std, ci95 = confidence_interval(accs_batch)
+    
     outputs_all = torch.cat(outputs_all, dim=0)
     labels_all = torch.cat(labels_all, dim=0)
     true_labels = torch.cat(true_labels_all, dim=0)
@@ -145,7 +156,7 @@ def evaluate_vague_nonvague(
 
     # check precision, recall, f-score for composite classes
     prec_recall_f = precision_recall_f_v1(labels_all, preds_all, num_singles) 
-    test_vague_result_log(js_result, prec_recall_f, acc, js_comp, js_singl, epoch, bestModel, train_flag=train_flag)
+    evaluate_vague_result_log(js_result, prec_recall_f, acc, std, ci95, js_comp, js_singl, epoch, bestModel, bestModelGT, train_flag=train_flag)
 
     ##### nonVagueAcc for all examples
     alpha = torch.add(outputs_all[:,:num_singles], 1)
@@ -166,52 +177,9 @@ def evaluate_vague_nonvague(
     pred_corr_or_not_singl = pred_corr_or_not[singl_idx]
     corr_num_singl = torch.sum(pred_corr_or_not_singl)
     nonvague_acc_singl = corr_num_singl / len(pred_corr_or_not_singl)
-    test_nonvague_result_log(nonvague_acc_meanGDD, 0, nonvague_acc_singl, epoch, bestModel, train_flag=train_flag)
-
-
-@torch.no_grad()
-def evaluate_nonvague_HENN_final(
-    model,
-    test_loader,
-    K,
-    device,
-    num_comp,
-    vague_classes_ids,
-    R
-    ):
-    model.eval()
-    output_all = []
-    true_labels_all = []
-    for batch in test_loader:
-        images, single_labels_GT, _ = batch
-        images = images.to(device, non_blocking=True)
-        labels = single_labels_GT.to(device, non_blocking=True)
-        output = model(images)
-        output_all.append(output)
-        true_labels_all.append(labels)
-    output_all = torch.cat(output_all, dim=0)
-    true_labels = torch.cat(true_labels_all, dim=0)
-
-    # nonVagueAcc for all examples
-    alpha = torch.add(output_all[:,:K], 1)
-    # Get the predicted prob and labels
-    p_exp1 = meanGDD(vague_classes_ids, alpha, output_all, K, num_comp, device)
-    predicted_labels1 = torch.argmax(p_exp1, dim=1) # 
-    corr_num1 = torch.sum(true_labels.cpu() == predicted_labels1.cpu())
-    acc1 = corr_num1 / len(true_labels)
+    evaluate_nonvague_result_log(nonvague_acc_meanGDD, 0, nonvague_acc_singl, epoch, bestModel, bestModelGT, train_flag=train_flag)
     
-    p_exp = projection_prob(K, num_comp, R, output_all.cpu())
-    predicted_labels = torch.argmax(p_exp, dim=1) # 
-    corr_num = torch.sum(true_labels.cpu() == predicted_labels.cpu())
-    acc = corr_num / len(true_labels)
-
-    # nonVagueAcc for singleton examples
-    p_exp = projection_prob(K, num_comp, R, output_all.cpu())
-    predicted_labels = torch.argmax(p_exp, dim=1) # 
-    corr_num = torch.sum(true_labels.cpu() == predicted_labels.cpu())
-    nonVagueAcc_singl = corr_num / len(true_labels)
-    
-    return acc1, acc, nonVagueAcc_singl
+    return nonvague_acc_meanGDD, js_result[0]  #nonVagueAcc, overallJS
 
 
 def precision_recall_f_v1(y_test, y_pred, num_singles):

@@ -410,3 +410,115 @@ def henn_gdd(
         
         loss = uce_loss - entropy_lam * entropy - entropy_lam_Dir * entropy_Dir
         return loss, uce_loss.detach(), entropy.detach(), torch.tensor(0.).cuda(), entropy_Dir.detach(), flag_singleton
+
+
+def multi_hot_embedding_batch(labels, R, num_single, device='cpu'):
+    res = []
+    if labels.dim() == 0:
+        labels = labels.unsqueeze(dim=0) # compatible with batch_size=1
+    for label in labels:
+        res.append(multi_hot_embedding(label, R, num_single, device))
+    return torch.stack(res, dim=0)
+
+
+def edl_singl_comp_loss(
+    func, 
+    targets, #index: [11,5,13,2,7] 
+    R,
+    alpha, 
+    evidence_comps, 
+    num_single, 
+    kl_reg=True, 
+    device=None):
+    if targets.dim() == 0:
+        targets = targets.unsqueeze(dim=0) # compatible with batch_size=1
+    #concatenate alpha and evidence_comps
+    concentration = torch.cat([alpha, evidence_comps], dim=1) #256*10+256*4 = 256*14
+    beta_sum = torch.sum(concentration, dim=1, keepdim=True)
+    
+    multi_hot_embed = multi_hot_embedding_batch(targets, R, num_single, device=device)
+    pading = torch.zeros(len(targets), len(R)-num_single, device=device, requires_grad=True)
+    multi_hot_embed_pad = torch.cat([multi_hot_embed, pading], dim=1)
+    one_hot_embed = one_hot_embedding(targets, num_classes=len(R), device=device)
+    scalar_indicator_comp = targets>num_single-1 # only keep composite targets for one hot embedding
+    mixed_hot_embed = multi_hot_embed_pad + one_hot_embed*scalar_indicator_comp[:, None]
+    beta_gt_sum = torch.sum(mixed_hot_embed*concentration, dim=1, keepdim=True)
+    uce = func(beta_sum) - func(beta_gt_sum)
+    uce_mean = torch.mean(uce)
+
+    if not kl_reg:
+        return uce_mean, 0
+    
+    one_hot_embed_cut = one_hot_embed[:, :num_single]
+    kl_alpha = (alpha - 1) * (1 - one_hot_embed_cut) + 1
+    kl_term = kl_divergence(kl_alpha, num_single, device=device)
+    kl_mean = torch.mean(kl_term)
+    return uce_mean, kl_mean
+
+
+# Unified Expected Cross Entropy for singleton and composite classes 
+def unified_UCE_loss(
+    evidence, 
+    targets, 
+    R,
+    epoch_num, 
+    num_single,
+    annealing_step, 
+    kl_lam,
+    entropy_lam_Dir,
+    entropy_lam_GDD,
+    anneal=False,
+    kl_reg=False,
+    device=None
+):
+    if not device:
+        device = set_device()
+    if not anneal:
+        assert anneal == False
+    
+    if targets.dim() == 0:
+        targets = targets.unsqueeze(dim=0) # compatible with batch_size=1
+
+    if evidence.dim() == 1:
+        evidence = evidence.unsqueeze(dim=0)
+    
+    evidence_single = evidence[:, :num_single]
+    alpha = evidence_single + 1
+    evidence_comps = evidence[:, num_single:]
+    
+    uce_mean, kl_mean = edl_singl_comp_loss(
+        torch.digamma, 
+        targets,
+        R, 
+        alpha, 
+        evidence_comps,
+        num_single, 
+        kl_reg=kl_reg, 
+        device=device
+        )
+
+    if anneal:
+        annealing_coef = torch.min(
+            torch.tensor(1.0, dtype=torch.float32, device=device),
+            torch.tensor(epoch_num / annealing_step, dtype=torch.float32, device=device),
+        )
+        kl_div = annealing_coef * kl_mean
+    else:
+        kl_div = kl_lam * kl_mean
+
+    # # Entropy Dirichlet
+    # if exp_type == 5:
+    entropy = Dirichlet(alpha).entropy().mean()
+    
+    # Entropy of GDD
+    unique_comp_sets = R[num_single:]
+    uniques_elements_comp = sum(unique_comp_sets, [])
+    comp_rest_labels = list(set(range(num_single)) - set(uniques_elements_comp)) # [0,2,4,5]
+    unique_comp_sets.append(comp_rest_labels)
+    pading = torch.zeros(len(targets), 1, device=device, requires_grad=True)
+    evidence_comps_custom = torch.cat([evidence_comps, pading], dim=1)
+    entropy_GDD = GroupDirichlet(alpha, evidence_comps_custom, unique_comp_sets).entropy().mean()
+    
+    loss = uce_mean - entropy_lam_Dir * entropy - entropy_lam_GDD * entropy_GDD
+    
+    return loss, uce_mean.detach(), entropy.detach(), entropy_GDD.detach()

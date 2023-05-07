@@ -67,11 +67,11 @@ def make_vague_samples(
     all_sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
 
     if data_train==1:
-        num_samples_subclass = 14400 # for MNIST train
+        num_samples_subclass = 5400 # for MNIST train 5400,
     elif data_train == 2:
-        num_samples_subclass = 1500  # for MNIST valid
+        num_samples_subclass = 600  # for MNIST valid 600,
     elif data_train == 3:
-        num_samples_subclass = 2400  # for MNIST test
+        num_samples_subclass = 600  # for MNIST test 600,
     
     total_vague_examples_ids = []
     total_vague_examples = []
@@ -262,7 +262,7 @@ if __name__ == '__main__':
     dataset = MNIST(
             data_dir,
             batch_size=batch_size,
-            duplicate=True)
+            duplicate=False)
 
     print(f"class_to_idx: {dataset.class_to_idx}")
     print(f"idx_to_class: {dataset.idx_to_class}")
