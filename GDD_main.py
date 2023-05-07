@@ -140,18 +140,20 @@ def make(args):
     return mydata, model, criterion, optimizer, scheduler
 
 
-def generateSpecPath(
-    exp_type, 
-    output_folder, saved_spec_dir, 
-    num_comp,
-    gauss_kernel_size,
-    init_lr, 
-    entropy_lam, 
-    l2_lam):
+def generateSpecPath(args):
+    exp_type = args.exp_type 
+    output_folder = args.output_folder
+    saved_spec_dir = args.saved_spec_dir
+    num_comp = args.num_comp
+    gauss_kernel_size = args.gauss_kernel_size
+    init_lr = args.init_lr
+    entropy_lam_Dir = args.entropy_lam_Dir
+    entropy_lam_GDD = args.entropy_lam_GDD
+    
     base_path = os.path.join(output_folder, saved_spec_dir)
 
-    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep", f"HENNexp{exp_type}"])
-    tag = "_".join(["lr", str(init_lr), "EntropyLam", str(entropy_lam), "L2Lam", str(l2_lam)])
+    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep", f"GDDexp{exp_type}"])
+    tag = "_".join(["lr", str(init_lr), "EntrLamDir", str(entropy_lam_Dir), "EntrLamGDD", str(entropy_lam_GDD)])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
     base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, tag)
@@ -161,15 +163,7 @@ def generateSpecPath(
 
 def main(args):
     print(f"Current all hyperparameters: {args}")
-    base_path_spec_hyper = generateSpecPath(
-        args.exp_type,
-        args.output_folder, args.saved_spec_dir,
-        args.num_comp,
-        args.gauss_kernel_size, 
-        args.init_lr, 
-        args.entropy_lam, 
-        args.l2_lam)
-    
+    base_path_spec_hyper = generateSpecPath(args)    
     print(f"Model: Train:{args.train}, Test: {args.test}")
     set_random_seeds(args.seed)
     device = args.device
