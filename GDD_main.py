@@ -46,7 +46,7 @@ def make(args):
             batch_size=args.batch_size,
             imagenet_hierarchy_path=args.data_dir,
             blur=args.blur,
-            gray=args.gray,
+            gray=False,
             gauss_kernel_size=args.gauss_kernel_size,
             pretrain=args.pretrain,
             num_workers=args.num_workers,
@@ -149,11 +149,12 @@ def generateSpecPath(args):
     init_lr = args.init_lr
     entropy_lam_Dir = args.entropy_lam_Dir
     entropy_lam_GDD = args.entropy_lam_GDD
+    kl_lam = args.kl_lam
     
     base_path = os.path.join(output_folder, saved_spec_dir)
 
     tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep", f"GDDexp{exp_type}"])
-    tag = "_".join(["lr", str(init_lr), "EntrLamDir", str(entropy_lam_Dir), "EntrLamGDD", str(entropy_lam_GDD)])
+    tag = "_".join(["lr", str(init_lr), "klLam", str(kl_lam), "EntrLamDir", str(entropy_lam_Dir), "EntrLamGDD", str(entropy_lam_GDD)])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
     base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, tag)
@@ -178,7 +179,6 @@ def main(args):
         model, model_best, epoch_best, model_best_GT, epoch_best_GT = train_model(
                                             model,
                                             mydata,
-                                            num_classes,
                                             criterion,
                                             optimizer,
                                             args,
@@ -252,18 +252,18 @@ def main(args):
         
 
         # #! Training set for debugging
-        # # #Evaluation, Inference
-        # print(f"\n### (TrainingSet) Evaluate the model after all epochs:")
-        # evaluate_vague_nonvague(
-        #     model, mydata.train_loader, mydata.R, 
-        #     mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-        #     None, device, train_flag=1)
+        # #Evaluation, Inference
+        print(f"\n### (TrainingSet) Evaluate the model after all epochs:")
+        evaluate_vague_nonvague(
+            model, mydata.train_loader, mydata.R, 
+            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
+            None, device, train_flag=1)
 
-        # print(f"\n### (TrainingSet) Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
-        # evaluate_vague_nonvague(
-        #     model_best_from_valid, mydata.train_loader, mydata.R, 
-        #     mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-        #     None, device, bestModel=True, train_flag=1)
+        print(f"\n### (TrainingSet) Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
+        evaluate_vague_nonvague(
+            model_best_from_valid, mydata.train_loader, mydata.R, 
+            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
+            None, device, bestModel=True, train_flag=1)
 
 
 if __name__ == "__main__":

@@ -18,14 +18,14 @@ def train_valid_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2
             f"{phase}_loss_1_uce": epoch_loss_1, 
             f"{phase}_loss_2_entrDir": epoch_loss_2,
             f"{phase}_loss_3_entrGDD": epoch_loss_3,
-            f"{phase}_loss_4_l2": epoch_loss_4,
+            f"{phase}_loss_4_kl": epoch_loss_4,
             f"{phase}_acc": acc,  "epoch": epoch})
         print(
             f"{phase.capitalize()} loss: {loss:.4f} \
                 (loss_1_uce: {epoch_loss_1:.4f}, \
                  loss_2_entrDir:{epoch_loss_2:.4f}) \
                  loss_3_entrGDD:{epoch_loss_3:.4f}) \
-                 loss_4_l2:{epoch_loss_4:.4f}) \
+                 loss_4_kl:{epoch_loss_4:.4f}) \
                  acc: {acc:.4f}")
 
 
@@ -33,14 +33,19 @@ def evaluate_model(
     model,
     mydata,
     criterion,
-    uncertainty=False,
-    entropy_lam_Dir=0.01,
-    entropy_lam_GDD=0.01,
-    l2_lam=1,
-    exp_type=0,
+    args,
     device=None,
     epoch = 1,
 ):
+    uncertainty=args.use_uncertainty
+    entropy_lam_Dir=args.entropy_lam_Dir
+    entropy_lam_GDD=args.entropy_lam_GDD
+    kl_lam = args.kl_lam
+    l2_lam=args.l2_lam
+    kl_reg=args.kl_reg
+    exp_type=args.exp_type
+    kl_anneal = args.kl_anneal
+    
     begin_eval = time.time()
 
     print("Validing...")
@@ -90,21 +95,21 @@ def evaluate_model(
             #     loss_third += loss_third_i
             #     loss_fourth += loss_fourth_i
             
-            loss, loss_first_avg, loss_second_avg, loss_third_avg = criterion(
+            loss, loss_first_avg, loss_second_avg, loss_third_avg, loss_fourth_avg = criterion(
                                                     outputs, 
                                                     labels, 
                                                     mydata.R,
                                                     epoch, 
                                                     mydata.num_classes,
-                                                    10, 
-                                                    0,
+                                                    args.anneal_step, 
+                                                    kl_lam,
                                                     entropy_lam_Dir,
                                                     entropy_lam_GDD,
-                                                    anneal=False,
-                                                    kl_reg=False,
+                                                    anneal=kl_anneal,
+                                                    kl_reg=kl_reg,
                                                     device=device)
             # loss_third_avg = 0
-            loss_fourth_avg = 0 
+            # loss_fourth_avg = 0 
 
             # statistics
             running_loss += loss.detach()

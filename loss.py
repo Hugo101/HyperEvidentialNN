@@ -447,10 +447,11 @@ def edl_singl_comp_loss(
     uce_mean = torch.mean(uce)
 
     if not kl_reg:
-        return uce_mean, 0
+        return uce_mean, torch.tensor(0.).cuda()
     
-    one_hot_embed_cut = one_hot_embed[:, :num_single]
-    kl_alpha = (alpha - 1) * (1 - one_hot_embed_cut) + 1
+    # one_hot_embed_cut = one_hot_embed[:, :num_single]
+    # kl_alpha = (alpha - 1) * (1 - one_hot_embed_cut) + 1
+    kl_alpha = alpha
     kl_term = kl_divergence(kl_alpha, num_single, device=device)
     kl_mean = torch.mean(kl_term)
     return uce_mean, kl_mean
@@ -461,7 +462,7 @@ def unified_UCE_loss(
     evidence, 
     targets, 
     R,
-    epoch_num, 
+    epoch_curr, 
     num_single,
     annealing_step, 
     kl_lam,
@@ -500,7 +501,7 @@ def unified_UCE_loss(
     if anneal:
         annealing_coef = torch.min(
             torch.tensor(1.0, dtype=torch.float32, device=device),
-            torch.tensor(epoch_num / annealing_step, dtype=torch.float32, device=device),
+            torch.tensor(epoch_curr / annealing_step, dtype=torch.float32, device=device),
         )
         kl_div = annealing_coef * kl_mean
     else:
@@ -519,6 +520,7 @@ def unified_UCE_loss(
     evidence_comps_custom = torch.cat([evidence_comps, pading], dim=1)
     entropy_GDD = GroupDirichlet(alpha, evidence_comps_custom, unique_comp_sets).entropy().mean()
     
-    loss = uce_mean - entropy_lam_Dir * entropy - entropy_lam_GDD * entropy_GDD
+    loss = uce_mean - entropy_lam_Dir * entropy - entropy_lam_GDD * entropy_GDD + kl_div
     
-    return loss, uce_mean.detach(), entropy.detach(), entropy_GDD.detach()
+    return loss, uce_mean.detach(), entropy.detach(), entropy_GDD.detach(), kl_mean.detach()  
+    # return loss, uce_mean.detach(), kl_mean.detach(), torch.tensor(0.).cuda()

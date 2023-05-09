@@ -56,7 +56,7 @@ parser.add_argument(
     )
 
 parser.add_argument(
-    '--l2_lam', default=1.0,
+    '--kl_lam', default=1.0,
     type=float, help="weight for regularizer: l2 norm"
 )
 
