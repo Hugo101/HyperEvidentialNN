@@ -153,9 +153,10 @@ def train_model(
             # loss_fourth_avg = 0 
 
             acc_batch = torch.sum(preds == labels)/batch_size
-            iteration = epoch * len(dataloader) + batch_idx
-            train_batch_log(iteration, acc_batch, loss, loss_first_avg, loss_second_avg, loss_third_avg, loss_fourth_avg)
-            print(f"##Epoch {epoch} - batch {batch_idx}/{len(dataloader)} Train loss: {loss:.4f}, loss_first: {loss_first_avg:.4f}, loss_second: {loss_second_avg:.4f}, loss_third: {loss_third_avg:.4f}, loss_fourth: {loss_fourth_avg:.4f}, acc: {acc_batch:.4f}, S/C:{singleton_size}/{composite_size}")
+            # iteration = epoch * len(dataloader) + batch_idx
+            # train_batch_log(iteration, acc_batch, loss, loss_first_avg, loss_second_avg, loss_third_avg, loss_fourth_avg)
+            if batch_idx % 100 == 0:
+                print(f"##Epoch {epoch} - batch {batch_idx}/{len(dataloader)} Train loss: {loss:.4f}, loss_first: {loss_first_avg:.4f}, loss_second: {loss_second_avg:.4f}, loss_third: {loss_third_avg:.4f}, loss_fourth: {loss_fourth_avg:.4f}, acc: {acc_batch:.4f}, S/C:{singleton_size}/{composite_size}")
             
             # print(f"output: {outputs[0]}")
             # if batch_idx == 67:
