@@ -457,13 +457,16 @@ def make(args):
     return mydata, model, criterion, optimizer, scheduler
 
 
-def generateSpecPath(
-    output_folder, saved_spec_dir, 
-    num_comp,
-    gauss_kernel_size,
-    init_lr):
+def generateSpecPath(args):
+    output_folder=args.output_folder
+    saved_spec_dir=args.saved_spec_dir 
+    num_comp=args.num_comp
+    gauss_kernel_size=args.gauss_kernel_size
+    init_lr=args.init_lr
+    seed=args.seed
+    
     base_path = os.path.join(output_folder, saved_spec_dir)
-    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep_DNN"])
+    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", f"Seed{seed}", "sweep_DNN"])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
     base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, str(init_lr))
@@ -479,11 +482,7 @@ def main(project_name, args_all):
         args = wandb.config
         print(f"Current wandb.config: {wandb.config}")
         # create a more specfic path to save the model for the current hyperparameter
-        base_path_spec_hyper = generateSpecPath(
-            args.output_folder, args.saved_spec_dir, 
-            args.num_comp,
-            args.gauss_kernel_size,
-            args.init_lr)
+        base_path_spec_hyper = generateSpecPath(args)
         set_random_seeds(args.seed)
         device = args.device
         mydata, model, criterion, optimizer, scheduler = make(args)
