@@ -150,11 +150,12 @@ def generateSpecPath(args):
     entropy_lam_Dir = args.entropy_lam_Dir
     entropy_lam_GDD = args.entropy_lam_GDD
     kl_lam = args.kl_lam
+    seed = args.seed
     
     base_path = os.path.join(output_folder, saved_spec_dir)
 
     tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep", f"GDDexp{exp_type}"])
-    tag = "_".join(["lr", str(init_lr), "klLam", str(kl_lam), "EntrLamDir", str(entropy_lam_Dir), "EntrLamGDD", str(entropy_lam_GDD)])
+    tag = "_".join(["lr", str(init_lr), "klLam", str(kl_lam), "EntrLamDir", str(entropy_lam_Dir), "EntrLamGDD", str(entropy_lam_GDD),"Seed", str(seed)])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
     base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, tag)
