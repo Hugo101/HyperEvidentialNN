@@ -165,9 +165,9 @@ def make_vague_samples(
     all_sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
 
     if data_train:
-        num_samples_subclass = 450 # 450 for TinyImageNet train
+        num_samples_subclass = 900 # 450 for TinyImageNet train
     else:
-        num_samples_subclass = 50  # 50 for TinyImageNet valid / test
+        num_samples_subclass = 100  # 50 for TinyImageNet valid / test
     
     total_vague_examples_ids = []
     total_vague_examples = []
