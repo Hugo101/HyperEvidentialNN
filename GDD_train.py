@@ -31,7 +31,6 @@ def train_model(
     device=None,
 ):
     num_epochs=args.epochs
-    uncertainty=args.use_uncertainty
     entropy_lam_Dir=args.entropy_lam_Dir
     entropy_lam_GDD=args.entropy_lam_GDD
     kl_lam = args.kl_lam
@@ -78,8 +77,6 @@ def train_model(
             
             # zero the parameter gradients
             optimizer.zero_grad()
-            # forward, track history if only in train
-
             outputs = model(inputs) # evidence output
             _, preds = torch.max(outputs, 1)
 
@@ -98,8 +95,10 @@ def train_model(
                           FlagSingleton?: {flag_singleton},  \n \
                           GTvague: {labels[i]}, GT: {targetsGT[i]}, Pred: {preds[i]}, \n \
                           Evidence: {outputs[i].data.cpu()}, \n \
-                          loss_i: {loss_i:.4f}, lossUCE:{loss_1_i:.4f}, EntrDir_2:{loss_2_i:.4f}, EntrGDD_3:{loss_3_i:.4f}, KL_4:{loss_4_i:.4f}.")
+                          loss_i: {loss_i:.4f}, lossUCE:{loss_1_i:.4f}, EntrDir_2:{loss_2_i:.4f},\
+                          EntrGDD_3:{loss_3_i:.4f}, KL_4:{loss_4_i:.4f}.")
             
+            ########################
             # loss_batch = 0.
             # loss_first = 0.
             # loss_second = 0.
@@ -113,11 +112,17 @@ def train_model(
             #         entropy_lam, l2_lam, entropy_lam_Dir,
             #         device=device)
 
-            #     if epoch%10==0 and batch_idx in [66, 67, 68]:
-            #         print(f"### Epoch {epoch} - batch {batch_idx}/{len(dataloader)}, %%% Example {i}/{batch_size}, Flag_singleton: {flag_singleton}, EntropyCt: {loss_second_i}, EntropyAll: {loss_second}, \n GT: {labels[i]}, Pred: {preds[i]}, \n Evidence: {outputs[i].data.cpu()}, \n loss_1:{loss_first_i:.4f}, loss_2:{loss_second_i:.4f}, loss_3:{loss_third_i:.4f}, loss_4:{loss_fourth_i:.4f}.")
+                # if epoch%10==0 and batch_idx in [66, 67, 68]:
+                #     print(
+                #         f"### Epoch {epoch} - batch {batch_idx}/{len(dataloader)}, \
+                #          Example {i}/{batch_size}, Flag_singleton: {flag_singleton}, \
+                #         EntropyCt: {loss_second_i}, EntropyAll: {loss_second}, \n \
+                #             GT: {labels[i]}, Pred: {preds[i]}, \n \
+                #                 Evidence: {outputs[i].data.cpu()}, \n \
+                #                     loss_1:{loss_first_i:.4f}, loss_2:{loss_second_i:.4f}, \
+                #                         loss_3:{loss_third_i:.4f}, loss_4:{loss_fourth_i:.4f}.")
             #     #     if i==142:
             #     #         print(f"#### Example {i}/{batch_size}, EntropyCt: {loss_second_i}, EntropyAll: {loss_second}")
-                
             #     singleton_size += flag_singleton
 
             #     loss_batch += loss_one_example
@@ -125,8 +130,6 @@ def train_model(
             #     loss_second += loss_second_i
             #     loss_third += loss_third_i
             #     loss_fourth += loss_fourth_i
-                
-            #     # print(f"##Ep: {epoch}- batch {batch_idx}/{len(dataloader)}. ExampleID {i}/{batch_size}, CurrentEntropy: {loss_second_i:.4f}, CurrSumEntropy: {loss_second:.4f}")
             
             # composite_size = batch_size - singleton_size
             
@@ -135,7 +138,8 @@ def train_model(
             # loss_second_avg = loss_second / batch_size
             # loss_third_avg = loss_third / singleton_size # l2 loss
             # loss_fourth_avg = loss_fourth / composite_size # entropy Dirichlet
-            
+            ######################
+
             loss, loss_first_avg, loss_second_avg, loss_third_avg, loss_fourth_avg = criterion(
                                                     outputs, 
                                                     labels, 
@@ -149,14 +153,19 @@ def train_model(
                                                     anneal=args.kl_anneal,
                                                     kl_reg=args.kl_reg,
                                                     device=device)
-            # loss_third_avg = 0
-            # loss_fourth_avg = 0 
 
             acc_batch = torch.sum(preds == labels)/batch_size
             # iteration = epoch * len(dataloader) + batch_idx
             # train_batch_log(iteration, acc_batch, loss, loss_first_avg, loss_second_avg, loss_third_avg, loss_fourth_avg)
             if batch_idx % 100 == 0:
-                print(f"##Epoch {epoch} - batch {batch_idx}/{len(dataloader)} Train loss: {loss:.4f}, loss_first: {loss_first_avg:.4f}, loss_second: {loss_second_avg:.4f}, loss_third: {loss_third_avg:.4f}, loss_fourth: {loss_fourth_avg:.4f}, acc: {acc_batch:.4f}, S/C:{singleton_size}/{composite_size}")
+                print(
+                    f"##Epoch {epoch} - batch {batch_idx}/{len(dataloader)}, \
+                    Train loss: {loss:.4f}, \
+                    loss_first: {loss_first_avg:.4f}, \
+                    loss_second: {loss_second_avg:.4f}, \
+                    loss_third: {loss_third_avg:.4f}, \
+                    loss_fourth: {loss_fourth_avg:.4f}, \
+                    acc: {acc_batch:.4f}, S/C:{singleton_size}/{composite_size}")
             
             # print(f"output: {outputs[0]}")
             # if batch_idx == 67:
@@ -188,7 +197,9 @@ def train_model(
         epoch_loss_3 = running_loss_3 / dataset_size_train
         epoch_loss_4 = running_loss_4 / dataset_size_train
 
-        train_valid_log(exp_type, "train", epoch, epoch_acc, epoch_loss, epoch_loss_1, epoch_loss_2, epoch_loss_3, epoch_loss_4)
+        train_valid_log(exp_type, "train", epoch, epoch_acc, 
+                        epoch_loss, epoch_loss_1, epoch_loss_2, 
+                        epoch_loss_3, epoch_loss_4)
         time_epoch_train = time.time() - begin_epoch
         print(
         f"Finish the Train in this epoch in {time_epoch_train//60:.0f}m {time_epoch_train%60:.0f}s.")
