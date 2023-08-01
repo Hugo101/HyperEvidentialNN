@@ -356,36 +356,58 @@ class GDD_latentZ(object):
 
 
 if __name__ == "__main__":
+    #! check log_prob
     evidence_single = torch.tensor([2., 6., 2., 9., 1., 5.])
     evidence_comps = torch.tensor([12., 34., 0.])
     m5 = GroupDirichlet(evidence_single+1, evidence_comps, [[0, 1],[2, 4], [3, 5]])
-    entropy_analytical_gdd = m5.entropy()
-    print(f"Analytical Differential Entropy: {entropy_analytical_gdd}") # -8.4025 from analytical solution
-    print(f"log normalized constant: {m5.log_normalized_constant()}")
-    
-    evidence_single = torch.tensor([[2., 6., 2., 9., 1., 5.],
-                                    [2., 6., 2., 9., 1., 5.],
-                                    [2., 6., 2., 9., 1., 5.]])
-    evidence_comps = torch.tensor([[12., 34., 0.],
-                                   [12., 34., 0.],
-                                   [12., 34., 0.]])
+    ppp = torch.tensor([0.1, 0.1, 0.1, 0.2, 0.3, 0.1])
+    log_prob = m5.log_prob(ppp)
+    print(f"log prob GDD1: {log_prob}")
+
+    evidence_single = torch.tensor([2., 6., 2., 9., 1., 5.])
+    evidence_comps = torch.tensor([0., 0., 0.])
     m5 = GroupDirichlet(evidence_single+1, evidence_comps, [[0, 1],[2, 4], [3, 5]])
-    entropy_analytical_gdd = m5.entropy()
-    print(f"Analytical Differential Entropy: {entropy_analytical_gdd}") # -8.4025 from analytical solution
-    print(f"log normalized constant: {m5.log_normalized_constant()}")
+    ppp = torch.tensor([0.1, 0.1, 0.1, 0.2, 0.3, 0.1])
+    log_prob = m5.log_prob(ppp)
+    print(f"log prob GDD2: {log_prob}")
     
-    evidence_single = torch.tensor([[1., 1., 1., 1., 1., 1.],
-                                    [1., 1., 1., 1., 1., 1.],
-                                    [1., 1., 1., 1., 1., 1.],
-                                    [2., 2., 2., 2., 2., 2.]])
-    evidence_comps = torch.tensor([[0., 0., 0.],
-                                   [1., 1., 1.],
-                                   [2., 2., 2.],
-                                   [1., 1., 1.]])
-    m5 = GroupDirichlet(evidence_single+1, evidence_comps, [[0, 1],[2, 4], [3, 5]])
-    entropy_analytical_gdd = m5.entropy()
-    print(f"Analytical Differential Entropy: {entropy_analytical_gdd}") # -8.4025 from analytical solution
-    print(f"log normalized constant: {m5.log_normalized_constant()}")
+
+    evidence_single = torch.tensor([2., 6., 2., 9., 1., 5.])
+    m5 = Dirichlet(evidence_single+1)
+    ppp = torch.tensor([0.1, 0.1, 0.1, 0.2, 0.3, 0.1])
+    log_prob = m5.log_prob(ppp)
+    print(f"log prob Dir: {log_prob}")
+    
+    # evidence_single = torch.tensor([2., 6., 2., 9., 1., 5.])
+    # evidence_comps = torch.tensor([12., 34., 0.])
+    # m5 = GroupDirichlet(evidence_single+1, evidence_comps, [[0, 1],[2, 4], [3, 5]])
+    # entropy_analytical_gdd = m5.entropy()
+    # print(f"Analytical Differential Entropy: {entropy_analytical_gdd}") # -8.4025 from analytical solution
+    # print(f"log normalized constant: {m5.log_normalized_constant()}")
+    
+    # evidence_single = torch.tensor([[2., 6., 2., 9., 1., 5.],
+    #                                 [2., 6., 2., 9., 1., 5.],
+    #                                 [2., 6., 2., 9., 1., 5.]])
+    # evidence_comps = torch.tensor([[12., 34., 0.],
+    #                                [12., 34., 0.],
+    #                                [12., 34., 0.]])
+    # m5 = GroupDirichlet(evidence_single+1, evidence_comps, [[0, 1],[2, 4], [3, 5]])
+    # entropy_analytical_gdd = m5.entropy()
+    # print(f"Analytical Differential Entropy: {entropy_analytical_gdd}") # -8.4025 from analytical solution
+    # print(f"log normalized constant: {m5.log_normalized_constant()}")
+    
+    # evidence_single = torch.tensor([[1., 1., 1., 1., 1., 1.],
+    #                                 [1., 1., 1., 1., 1., 1.],
+    #                                 [1., 1., 1., 1., 1., 1.],
+    #                                 [2., 2., 2., 2., 2., 2.]])
+    # evidence_comps = torch.tensor([[0., 0., 0.],
+    #                                [1., 1., 1.],
+    #                                [2., 2., 2.],
+    #                                [1., 1., 1.]])
+    # m5 = GroupDirichlet(evidence_single+1, evidence_comps, [[0, 1],[2, 4], [3, 5]])
+    # entropy_analytical_gdd = m5.entropy()
+    # print(f"Analytical Differential Entropy: {entropy_analytical_gdd}") # -8.4025 from analytical solution
+    # print(f"log normalized constant: {m5.log_normalized_constant()}")
     
 #     ###! Basic Group Dirichlet Distribution sampling test
 #     # m = GroupDirichlet(torch.tensor([1., 2., 3., 4., 5.]), torch.tensor([5., 6.]), [[1,3,0],[2,4]])

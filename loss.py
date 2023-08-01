@@ -429,7 +429,8 @@ def edl_singl_comp_loss(
     evidence_comps, 
     num_single, 
     kl_reg=True, 
-    device=None):
+    device=None
+    ):
     if targets.dim() == 0:
         targets = targets.unsqueeze(dim=0) # compatible with batch_size=1
     #concatenate alpha and evidence_comps
@@ -471,7 +472,7 @@ def unified_UCE_loss(
     anneal=False,
     kl_reg=False,
     device=None
-):
+    ):
     if not device:
         device = set_device()
     if not anneal:
@@ -498,6 +499,8 @@ def unified_UCE_loss(
         device=device
         )
 
+    ### different regularizations ###
+    # KL divergence
     if anneal:
         annealing_coef = torch.min(
             torch.tensor(1.0, dtype=torch.float32, device=device),
@@ -507,8 +510,7 @@ def unified_UCE_loss(
     else:
         kl_div = kl_lam * kl_mean
 
-    # # Entropy Dirichlet
-    # if exp_type == 5:
+    # Entropy of Dirichlet Distribution
     entropy = Dirichlet(alpha).entropy().mean()
     
     # Entropy of GDD

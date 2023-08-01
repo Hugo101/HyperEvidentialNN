@@ -1,20 +1,13 @@
 # Import libraries
 import os 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-import numpy as np
-import pandas as pd
-from datetime import datetime as dt
 import time
-import yaml       
-from sklearn import metrics
-import urllib
-import zipfile
+import yaml
 import wandb 
 import copy 
 import torch
 torch.set_num_threads(4)
-from torch import optim, nn
-import torch.nn.functional as F
+from torch import optim
 
 from config_args import parser  
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
@@ -175,6 +168,16 @@ def main(args):
     num_classes = num_singles + num_comps
     print("Total number of classes to train: ", num_classes)
 
+    # saved path for model
+    if args.digamma:
+        saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
+    if args.log:
+        saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_log.pt")
+    if args.mse:
+        saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
+    if args.henn_gdd:
+        saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_gdd.pt")
+
     if args.train:
         start = time.time()
         model, model_best, epoch_best, model_best_GT, epoch_best_GT = train_model(
@@ -196,15 +199,6 @@ def main(args):
             "model_state_dict_best_GT": model_best_GT.state_dict(),
         }
 
-        if args.digamma:
-            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
-        if args.log:
-            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_log.pt")
-        if args.mse:
-            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
-        if args.henn_gdd:
-            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_gdd.pt")
-
         torch.save(state, saved_path)
         print(f"Saved: {saved_path}")
         end = time.time()
@@ -213,15 +207,6 @@ def main(args):
         print(f"## No training, load trained model directly")
 
     if args.test:
-        if args.digamma:
-            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
-        if args.log:
-            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_log.pt")
-        if args.mse:
-            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
-        if args.henn_gdd:
-            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_gdd.pt")
-        
         checkpoint = torch.load(saved_path, map_location=device)
         model.load_state_dict(checkpoint["model_state_dict"])
 
@@ -269,8 +254,6 @@ def main(args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    # process argparse & yaml
-    # if  args.config:
     opt = vars(args)
 
     # build the path to save model and results
@@ -293,6 +276,7 @@ if __name__ == "__main__":
 
     # tell wandb to get started
     print("Default setting before hyperparameters tuning:", opt)
-    with wandb.init(project=f"{opt['dataset']}-{opt['num_comp']}M-Ker{opt['gauss_kernel_size']}-HENNgdd-Debug", config=opt):
+    project_name = f"{opt['dataset']}-{opt['num_comp']}M-Ker{opt['gauss_kernel_size']}-HENNgdd-Debug"
+    with wandb.init(project=project_name, config=opt):
         config = wandb.config
         main(config)
