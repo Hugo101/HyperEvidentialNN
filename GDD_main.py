@@ -218,13 +218,13 @@ def main(args):
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, train_flag=3)
 
-        print(f"\n### Use the model selected from Valid set in Ep. {checkpoint['epoch_best']}:")
+        print(f"\n### Use the model selected from ValidSet in Ep. {checkpoint['epoch_best']}:")
         evaluate_vague_nonvague(
             model_best_from_valid, mydata.test_loader, mydata.R, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, bestModel=True, train_flag=3)
 
-        print(f"\n### Use the model selected from Valid set (GT) in Ep. {checkpoint['epoch_best_GT']}:")
+        print(f"\n### Use the model selected from ValidSet (GT) in Ep. {checkpoint['epoch_best_GT']}:")
         evaluate_vague_nonvague(
             model_best_from_valid_GT, mydata.test_loader, mydata.R, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
