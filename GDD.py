@@ -64,7 +64,7 @@ class GroupDirichlet(ExponentialFamily):
         super().__init__(validate_args=validate_args)
 
 
-    def rsample(self, sample_shape=()):
+    def rsample(self, sample_shape=()): #todo: this still have some issue
         result = []
         dir_R_tmp = Dirichlet(self.concentration_R)
         R_samples = dir_R_tmp.sample(sample_shape)
@@ -73,7 +73,7 @@ class GroupDirichlet(ExponentialFamily):
         for i in range(self.n_partition):
             dir_Y_curr_part = Dirichlet(self.concentration_Y[i])
             Y_samples_curr = dir_Y_curr_part.sample(sample_shape)
-            R_sample_curr = R_samples[:, i].unsqueeze(dim=1).expand(Y_samples_curr.shape)
+            R_sample_curr = R_samples[:, :, i].unsqueeze(dim=1).expand(Y_samples_curr.shape)
             result.append(R_sample_curr*Y_samples_curr)
         
         result = torch.cat(result, dim=1)
@@ -356,6 +356,13 @@ class GDD_latentZ(object):
 
 
 if __name__ == "__main__":
+    device = "cuda:0"
+    m1 = GroupDirichlet(torch.tensor([1., 2., 3., 4., 5.]).to(device), torch.tensor([5., 0.]).to(device), [[1,3,0],[2,4]])
+    #     log_Cg1 = m1.log_normalized_constant() 
+    # print(f"log_C_g: {log_Cg1}") #-22.7539
+    s1 = m1.sample((5,))
+    print(s1)
+
     #! check log_prob
     evidence_single = torch.tensor([2., 6., 2., 9., 1., 5.])
     evidence_comps = torch.tensor([12., 34., 0.])
