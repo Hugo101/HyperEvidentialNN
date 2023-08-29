@@ -80,24 +80,26 @@ def train_valid_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2
 
 
 def evaluate_model(
+    args,
     model,
     mydata,
     num_classes,
     criterion,
-    uncertainty=False,
-    kl_reg=True,
-    kl_lam=0.001,
-    kl_reg_teacher=False,
-    kl_lam_teacher=0.001,
-    forward_kl_teacher=True,
     pretrainedModel=None,
-    entropy_reg=False,
-    entropy_lam=0.001,
-    ce_lam=1,
-    exp_type=0,
     device=None,
     epoch = 1,
 ):
+    uncertainty=args.use_uncertainty
+    kl_reg=args.kl_reg
+    kl_lam=args.kl_lam
+    kl_reg_teacher=args.kl_reg_teacher
+    kl_lam_teacher=args.kl_lam_teacher
+    forward_kl_teacher=args.forward_kl_teacher
+    entropy_reg=args.entropy_reg
+    entropy_lam=args.entropy_lam
+    ce_lam=args.ce_lam
+    exp_type=args.exp_type
+
     begin_eval = time.time()
 
     print("Validing...")

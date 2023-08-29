@@ -12,29 +12,31 @@ from evaluate import train_valid_log, evaluate_model
 
 
 def train_model(
+    args,
     model,
     mydata,
     num_classes,
     criterion,
     optimizer,
     scheduler=None,
-    num_epochs=25,
-    uncertainty=False,
-    kl_reg=True,
-    kl_lam=0.001,
-    kl_reg_teacher=False,
-    kl_lam_teacher=0.001,
-    forward_kl_teacher=True,
-    saved_path_teacher=None,
-    entropy_reg=False,
-    entropy_lam=0.001,
-    ce_lam=1,
-    exp_type=0,
     device=None,
     logdir="./runs"
 ):
     wandb.watch(model, log="all", log_freq=100)
 
+    num_epochs=args.epochs
+    uncertainty=args.use_uncertainty
+    kl_reg=args.kl_reg
+    kl_lam=args.kl_lam
+    kl_reg_teacher=args.kl_reg_teacher
+    kl_lam_teacher=args.kl_lam_teacher
+    forward_kl_teacher=args.forward_kl_teacher
+    saved_path_teacher=args.saved_path_teacher
+    entropy_reg=args.entropy_reg
+    entropy_lam=args.entropy_lam
+    ce_lam=args.ce_lam
+    exp_type=args.exp_type
+    
     since = time.time()
     
     pretrainedModel = None
@@ -168,25 +170,16 @@ def train_model(
 
         # Validation phase
         valid_acc, valid_loss = evaluate_model(
+            args,
             model,
             mydata,
             num_classes,
             criterion,
-            uncertainty=uncertainty,
-            kl_reg=kl_reg,
-            kl_lam=kl_lam,
-            kl_reg_teacher=kl_reg_teacher,
-            kl_lam_teacher=kl_lam_teacher,
-            forward_kl_teacher=forward_kl_teacher,
             pretrainedModel=pretrainedModel,
-            entropy_reg=entropy_reg,
-            entropy_lam=entropy_lam,
-            ce_lam=ce_lam,
-            exp_type=exp_type,
             device=device,
             epoch = epoch,
         )
-
+            
         if valid_acc > best_acc:
             best_acc = valid_acc
             best_epoch = epoch
