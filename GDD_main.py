@@ -28,10 +28,8 @@ def make(args):
     num_singles = 0
     num_comps = 0
     num_classes_both = 0 
-    use_uncertainty = args.use_uncertainty
-    milestone1 = args.milestone1
-    milestone2 = args.milestone2
     
+    ### Dataset ###
     if args.dataset == "tinyimagenet":
         mydata = tinyImageNetVague(
             args.data_dir, 
@@ -44,7 +42,6 @@ def make(args):
             pretrain=args.pretrain,
             num_workers=args.num_workers,
             seed=args.seed)
-
     elif args.dataset == "cifar100":
         mydata = CIFAR100Vague(
             args.data_dir, 
@@ -57,7 +54,6 @@ def make(args):
             seed=args.seed,
             comp_el_size=args.num_subclasses,
             )
-
     elif args.dataset in ["living17", "nonliving26", "entity13", "entity30"]:
         data_path_base = os.path.join(args.data_dir, "ILSVRC/ILSVRC")
         mydata = BREEDSVague(
@@ -73,7 +69,6 @@ def make(args):
             seed=args.seed,
             comp_el_size=args.num_subclasses,
             )
-
     if args.dataset == "mnist":
         mydata = MNIST(
             args.data_dir,
@@ -89,6 +84,7 @@ def make(args):
     num_comps = mydata.num_comp
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
     
+    ### Backbone ###
     num_classes_both = num_singles + num_comps
     if args.backbone == "EfficientNet-b3":
         model = HENN_EfficientNet(num_classes_both, pretrain=args.pretrain)
@@ -102,9 +98,9 @@ def make(args):
         model = HENN_LeNet_v2(out_dim=num_classes_both)
     else:
         print(f"### ERROR {args.dataset}: The backbone {args.backbone} is invalid!")
-
     model = model.to(args.device)
 
+    ### Loss ###
     if args.digamma:
         print("### Loss type: edl_digamma_loss")
         criterion = edl_digamma_loss
@@ -129,7 +125,7 @@ def make(args):
     # exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     # if args.pretrain:
         # exp_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 50], gamma=0.1)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[milestone1, milestone2], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[args.milestone1, args.milestone2], gamma=0.1)
     return mydata, model, criterion, optimizer, scheduler
 
 
@@ -146,7 +142,6 @@ def generateSpecPath(args):
     seed = args.seed
     
     base_path = os.path.join(output_folder, saved_spec_dir)
-
     tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep", f"GDDexp{exp_type}"])
     tag = "_".join(["lr", str(init_lr), "klLam", str(kl_lam), "EntrLamDir", str(entropy_lam_Dir), "EntrLamGDD", str(entropy_lam_GDD),"Seed", str(seed)])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
@@ -164,8 +159,7 @@ def main(args):
     device = args.device
     mydata, model, criterion, optimizer, scheduler = make(args)
     num_singles = mydata.num_classes
-    num_comps = mydata.num_comp
-    num_classes = num_singles + num_comps
+    num_classes = num_singles + mydata.num_comp
     print("Total number of classes to train: ", num_classes)
 
     # saved path for model
@@ -181,14 +175,14 @@ def main(args):
     if args.train:
         start = time.time()
         model, model_best, epoch_best, model_best_GT, epoch_best_GT = train_model(
-                                            model,
-                                            mydata,
-                                            criterion,
-                                            optimizer,
-                                            args,
-                                            scheduler=scheduler,
-                                            device=device,
-                                            )
+            args,
+            model,
+            mydata,
+            criterion,
+            optimizer,
+            scheduler=scheduler,
+            device=device,
+            )
 
         state = {
             "epoch_best": epoch_best,
@@ -224,18 +218,17 @@ def main(args):
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, train_flag=3)
 
-        print(f"\n### Use the model selected from Valid set in Epoch {checkpoint['epoch_best']}:")
+        print(f"\n### Use the model selected from Valid set in Ep. {checkpoint['epoch_best']}:")
         evaluate_vague_nonvague(
             model_best_from_valid, mydata.test_loader, mydata.R, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, bestModel=True, train_flag=3)
 
-        print(f"\n### Use the model selected from Valid set (GT) in Epoch {checkpoint['epoch_best_GT']}:")
+        print(f"\n### Use the model selected from Valid set (GT) in Ep. {checkpoint['epoch_best_GT']}:")
         evaluate_vague_nonvague(
             model_best_from_valid_GT, mydata.test_loader, mydata.R, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, bestModelGT=True, train_flag=3)
-        
 
         # #! Training set for debugging
         # #Evaluation, Inference

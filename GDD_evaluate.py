@@ -30,14 +30,13 @@ def train_valid_log(expType, phase, epoch, acc, loss, epoch_loss_1, epoch_loss_2
 
 
 def evaluate_model(
+    args,
     model,
     mydata,
     criterion,
-    args,
     device=None,
     epoch = 1,
 ):
-    uncertainty=args.use_uncertainty
     entropy_lam_Dir=args.entropy_lam_Dir
     entropy_lam_GDD=args.entropy_lam_GDD
     kl_lam = args.kl_lam

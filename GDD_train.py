@@ -22,11 +22,11 @@ def train_batch_log(iteration, acc, loss, epoch_loss_1, epoch_loss_2, epoch_loss
 
 
 def train_model(
+    args,
     model,
     mydata,
     criterion,
     optimizer,
-    args,
     scheduler=None,
     device=None,
 ):
@@ -206,10 +206,10 @@ def train_model(
 
         # Validation phase
         valid_acc, valid_loss, valid_acc_GT, valid_overJS = evaluate_model(
+            args,
             model,
             mydata,
             criterion,
-            args,
             device=device,
             epoch = epoch,
         )
