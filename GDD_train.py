@@ -134,13 +134,13 @@ def train_model(
             # composite_size = batch_size - singleton_size
             
             # loss = loss_batch / batch_size
-            # loss_first_avg = loss_first / batch_size
-            # loss_second_avg = loss_second / batch_size
-            # loss_third_avg = loss_third / singleton_size # l2 loss
-            # loss_fourth_avg = loss_fourth / composite_size # entropy Dirichlet
+            # loss_1st_avg = loss_first / batch_size
+            # loss_2nd_avg = loss_second / batch_size
+            # loss_3rd_avg = loss_third / singleton_size # l2 loss
+            # loss_4th_avg = loss_fourth / composite_size # entropy Dirichlet
             ######################
 
-            loss, loss_first_avg, loss_second_avg, loss_third_avg, loss_fourth_avg = criterion(
+            loss, loss_1st_avg, loss_2nd_avg, loss_3rd_avg, loss_4th_avg = criterion(
                                                     outputs, 
                                                     labels, 
                                                     mydata.R,
@@ -156,15 +156,15 @@ def train_model(
 
             acc_batch = torch.sum(preds == labels)/batch_size
             # iteration = epoch * len(dataloader) + batch_idx
-            # train_batch_log(iteration, acc_batch, loss, loss_first_avg, loss_second_avg, loss_third_avg, loss_fourth_avg)
+            # train_batch_log(iteration, acc_batch, loss, loss_1st_avg, loss_2nd_avg, loss_3rd_avg, loss_4th_avg)
             if batch_idx % 100 == 0:
                 print(
                     f"##Epoch {epoch} - batch {batch_idx}/{len(dataloader)}, \
                     Train loss: {loss:.4f}, \
-                    loss_first: {loss_first_avg:.4f}, \
-                    loss_second: {loss_second_avg:.4f}, \
-                    loss_third: {loss_third_avg:.4f}, \
-                    loss_fourth: {loss_fourth_avg:.4f}, \
+                    loss_first: {loss_1st_avg:.4f}, \
+                    loss_second: {loss_2nd_avg:.4f}, \
+                    loss_third: {loss_3rd_avg:.4f}, \
+                    loss_fourth: {loss_4th_avg:.4f}, \
                     acc: {acc_batch:.4f}, S/C:{singleton_size}/{composite_size}")
             
             # print(f"output: {outputs[0]}")
@@ -180,10 +180,10 @@ def train_model(
             running_loss += loss.detach() * batch_size
             running_corrects += torch.sum(preds == labels)
             
-            running_loss_1 += loss_first_avg * batch_size
-            running_loss_2 += loss_second_avg * batch_size
-            running_loss_3 += loss_third_avg * batch_size
-            running_loss_4 += loss_fourth_avg * batch_size
+            running_loss_1 += loss_1st_avg * batch_size
+            running_loss_2 += loss_2nd_avg * batch_size
+            running_loss_3 += loss_3rd_avg * batch_size
+            running_loss_4 += loss_4th_avg * batch_size
 
         if scheduler is not None:
             scheduler.step()

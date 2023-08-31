@@ -420,6 +420,7 @@ def edl_singl_comp_loss(
     concentration = torch.cat([alpha, evidence_comps], dim=1) #256*10+256*4 = 256*14
     beta_sum = torch.sum(concentration, dim=1, keepdim=True)
     
+    ### Composite part ###
     multi_hot_embed = multi_hot_embedding_batch(targets, R, num_single, device=device)
     padding = torch.zeros(len(targets), len(R)-num_single, device=device, requires_grad=True)
     multi_hot_pad_zero = torch.cat([multi_hot_embed, padding], dim=1)
@@ -430,7 +431,7 @@ def edl_singl_comp_loss(
     # 1) Loss corresponding composite example (term 1)
     uce_comp = func(beta_sum) - func(beta_gt_sum) # shape: batch_size*1
 
-    
+    ### Singleton part ###
     # singleton part 1
     alpha_gt_sum = torch.sum(multi_hot_pad_zero*concentration, dim=1, keepdim=True)
     uce_term21 = func(beta_sum) - func(alpha_gt_sum) # shape: batch_size*1
