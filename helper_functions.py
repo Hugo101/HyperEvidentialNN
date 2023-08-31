@@ -20,11 +20,49 @@ def one_hot_embedding(labels, num_classes=10, device='cpu'):
     return y[labels]
 
 
-def multi_hot_embedding(labels, R, num_classes=10, device='cpu'):
-    # Convert to One Hot Encoding
+def multi_hot_embedding(label, R, num_classes=10, device='cpu'):
+    # Convert to Multi Hot Encoding
+    # label: torch.tensor(4)
+    # R: [[0],[1],[2], [3], [0,1], [2,3]]
+    # return: tensor([1., 1., 0., 0., 0., 0., 0., 0., 0., 0.])
     y = torch.eye(num_classes, device=device)
-    composite_labels = R[labels]
+    composite_labels = R[label]
     return y[composite_labels].sum(dim=0)
+
+
+def multi_hot_embedding_batch(labels, R, num_single, device='cpu'):
+    # labels: torch.tensor([4, 1, 0, 5])
+    # R: [[0],[1],[2], [3], [0,1], [2,3]]
+    # num_single: 4
+    # return: A tensor of shape (batch_size, num_single)
+    #   [[1., 1., 0., 0.],
+    #    [0., 1., 0., 0.],
+    #    [1., 0., 0., 0.],
+    #    [0., 0., 1., 1.]]
+    res = []
+    if labels.dim() == 0:
+        labels = labels.unsqueeze(dim=0) # compatible with batch_size=1
+    for label in labels:
+        res.append(multi_hot_embedding(label, R, num_single, device))
+    return torch.stack(res, dim=0)
+
+
+def complete_comp_labels(input_list, set_list):
+    # Generate a new "R"
+    # input_list = [0, 1, 2, 3, 4, 5]
+    # set_list = [[0, 1], [2, 5]]
+    # return: [[0, 1], [0, 1], [2, 5], [3], [4], [2, 5]]
+    output = []
+    for item in input_list:
+        found_set = False
+        for set_comp in set_list:
+            if item in set_comp:
+                output.append(set_comp)
+                found_set = True
+                break
+        if not found_set:
+            output.append([item])
+    return output
 
 
 class AddLabelDataset(Dataset):
