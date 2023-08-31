@@ -104,12 +104,6 @@ def make(args):
     if args.digamma:
         print("### Loss type: edl_digamma_loss")
         criterion = edl_digamma_loss
-    elif args.log:
-        print("### Loss type: edl_log_loss")
-        criterion = edl_log_loss
-    elif args.mse:
-        print("### Loss type: edl_mse_loss")
-        criterion = edl_mse_loss
     elif args.henn_gdd:
         print("### Loss type: GDD")
         # criterion = henn_gdd
@@ -130,20 +124,9 @@ def make(args):
 
 
 def generateSpecPath(args):
-    exp_type = args.exp_type 
-    output_folder = args.output_folder
-    saved_spec_dir = args.saved_spec_dir
-    num_comp = args.num_comp
-    gauss_kernel_size = args.gauss_kernel_size
-    init_lr = args.init_lr
-    entropy_lam_Dir = args.entropy_lam_Dir
-    entropy_lam_GDD = args.entropy_lam_GDD
-    kl_lam = args.kl_lam
-    seed = args.seed
-    
-    base_path = os.path.join(output_folder, saved_spec_dir)
-    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep", f"GDDexp{exp_type}"])
-    tag = "_".join(["lr", str(init_lr), "klLam", str(kl_lam), "EntrLamDir", str(entropy_lam_Dir), "EntrLamGDD", str(entropy_lam_GDD),"Seed", str(seed)])
+    base_path = os.path.join(args.output_folder, args.saved_spec_dir)
+    tag0 = "_".join([f"SEED{args.seed}", f"{args.num_comp}M", f"Ker{args.gauss_kernel_size}", "sweep", f"GDDexp{args.exp_type}"])
+    tag = "_".join(["lr", str(args.init_lr), "klLam", str(args.kl_lam), "EntrLamDir", str(args.entropy_lam_Dir), "EntrLamGDD", str(args.entropy_lam_GDD)])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
     base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, tag)
@@ -165,10 +148,6 @@ def main(args):
     # saved path for model
     if args.digamma:
         saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
-    if args.log:
-        saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_log.pt")
-    if args.mse:
-        saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_mse.pt")
     if args.henn_gdd:
         saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_gdd.pt")
 
