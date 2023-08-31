@@ -428,29 +428,29 @@ def edl_singl_comp_loss(
     mixed_hot_embed = multi_hot_pad_zero + one_hot_embed*scalar_indicator_comp[:, None]
     beta_gt_sum = torch.sum(mixed_hot_embed*concentration, dim=1, keepdim=True)
     # 1) Loss corresponding composite example (term 1)
-    uce_comp = func(beta_sum) - func(beta_gt_sum)
+    uce_comp = func(beta_sum) - func(beta_gt_sum) # shape: batch_size*1
 
     
     # singleton part 1
     alpha_gt_sum = torch.sum(multi_hot_pad_zero*concentration, dim=1, keepdim=True)
-    uce_term21 = func(beta_sum) - func(alpha_gt_sum)
+    uce_term21 = func(beta_sum) - func(alpha_gt_sum) # shape: batch_size*1
     # singleton part 2
     R_comp = complete_comp_labels(targets, R[num_single:])
-    mul_hot_embed_comp = multi_hot_embedding_batch(targets, R_comp, num_single, device=device)
-    mul_hot_comp_pad_zero = torch.cat([mul_hot_embed_comp, padding], dim=1)
     targets_pseudo = pseudo_target(R_comp, R, num_single, device=device)
+    mul_hot_embed_comp = multi_hot_embedding_batch(targets_pseudo, R, num_single, device=device)
+    mul_hot_comp_pad_zero = torch.cat([mul_hot_embed_comp, padding], dim=1)
     one_hot_pseudo = one_hot_embedding(targets_pseudo, num_classes=len(R), device=device)
     scalar_indicator_comp_pseudo = targets_pseudo >= num_single # only keep composite targets 
     mixed_hot_comp_pseudo = mul_hot_comp_pad_zero + one_hot_pseudo*scalar_indicator_comp_pseudo[:, None]
     beta_gt_sum_pseudo = torch.sum(mixed_hot_comp_pseudo*concentration, dim=1, keepdim=True)
     alpha_gt_sum_pseudo = torch.sum(mul_hot_comp_pad_zero*concentration, dim=1, keepdim=True)
-    uce_term22 = func(beta_gt_sum_pseudo) - func(alpha_gt_sum_pseudo)
+    uce_term22 = func(beta_gt_sum_pseudo) - func(alpha_gt_sum_pseudo) # shape: batch_size*1
     # 2) Loss corresponding singleton example (term 2)
-    uce_single = uce_term21 - uce_term22
+    uce_single = uce_term21 - uce_term22 # shape: batch_size*1
     
     # combine composite and singleton losses (two terms)
     scalar_indicator_singl = targets < num_single # only keep singleton targets for one
-    uce_batch = uce_comp*scalar_indicator_comp[:, None] + uce_single*scalar_indicator_singl[:, None] #todo: check this
+    uce_batch = uce_comp*scalar_indicator_comp[:, None] + uce_single*scalar_indicator_singl[:, None]
     uce_mean = torch.mean(uce_batch)
 
 
@@ -521,16 +521,22 @@ def unified_UCE_loss(
     # entropy = Dirichlet(alpha).entropy().mean()
     
     # Entropy of Dirichlet Distribution (DirHPDF) #todo:Check this
-    entropy = Dirichlet(evidence+1).entropy().mean()
-    
+    if entropy_lam_Dir:
+        entropy = Dirichlet(evidence+1).entropy().mean()
+    else:
+        entropy = torch.tensor(0.).cuda()
+
     # Entropy of GDD
-    unique_comp_sets = R[num_single:]
-    uniques_elements_comp = sum(unique_comp_sets, [])
-    comp_rest_labels = list(set(range(num_single)) - set(uniques_elements_comp)) # [0,2,4,5]
-    unique_comp_sets.append(comp_rest_labels)
-    pading = torch.zeros(len(targets), 1, device=device, requires_grad=True)
-    evidence_comps_custom = torch.cat([evidence_comps, pading], dim=1)
-    entropy_GDD = GroupDirichlet(alpha, evidence_comps_custom, unique_comp_sets).entropy().mean()
+    if entropy_lam_GDD:
+        unique_comp_sets = R[num_single:]
+        uniques_elements_comp = sum(unique_comp_sets, [])
+        comp_rest_labels = list(set(range(num_single)) - set(uniques_elements_comp)) # [0,2,4,5]
+        unique_comp_sets.append(comp_rest_labels)
+        pading = torch.zeros(len(targets), 1, device=device, requires_grad=True)
+        evidence_comps_custom = torch.cat([evidence_comps, pading], dim=1)
+        entropy_GDD = GroupDirichlet(alpha, evidence_comps_custom, unique_comp_sets).entropy().mean()
+    else:
+        entropy_GDD = torch.tensor(0.).cuda()
     
     loss = uce_mean - entropy_lam_Dir * entropy - entropy_lam_GDD * entropy_GDD + kl_div
     
