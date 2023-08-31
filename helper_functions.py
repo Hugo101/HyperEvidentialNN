@@ -65,6 +65,21 @@ def complete_comp_labels(input_list, set_list):
     return output
 
 
+def pseudo_target(pseudo_comp, R, num_single, device='cpu'):
+    # pseudo_comp: [[0, 1], [0, 1], [2, 5], [3], [4], [2, 5]]
+    # R: [[0], [1], [2], [3], [4], [5], [0, 1], [2, 5]]
+    # num_single: 6
+    # return: [6, 6, 7, 3, 4, 7]
+    res = []
+    comp_set = R[num_single:]
+    for pseudo in pseudo_comp:
+        if pseudo in comp_set:
+            res.append(comp_set.index(pseudo) + num_single)
+        else:
+            res.append(pseudo[0])
+    return torch.tensor(res, dtype=torch.long, device=device)
+
+
 class AddLabelDataset(Dataset):
     def __init__(self, dataset):
         self.dataset = dataset
