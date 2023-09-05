@@ -32,6 +32,11 @@ parser.add_argument(
 
 ##### Hyperparameters #####
 parser.add_argument(
+    '--epochs', default=100, 
+    type=int, help='The number of composite elements'
+    )
+
+parser.add_argument(
     '--num_comp', default=5, 
     type=int, help='The number of composite elements'
     )
