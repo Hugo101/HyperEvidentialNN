@@ -82,7 +82,7 @@ def train_model(
 
             #! debugging
             for i in range(batch_size):
-                if epoch%10==0 and batch_idx in [66]:
+                if epoch in [10,90]  and batch_idx in [66]:
                     loss_i, loss_1_i, loss_2_i, loss_3_i, loss_4_i = criterion(
                         outputs[i], labels[i], mydata.R, epoch, mydata.num_classes,
                         args.anneal_step, kl_lam,
