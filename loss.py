@@ -543,3 +543,42 @@ def unified_UCE_loss(
     
     return loss, uce_mean.detach(), entropy.detach(), entropy_GDD.detach(), kl_mean.detach()  
     # return loss, uce_mean.detach(), kl_mean.detach(), torch.tensor(0.).cuda()
+
+
+
+# Unified Expected Cross Entropy for singleton and composite classes 
+def unified_UCE_loss_onlyUACE(
+    evidence, 
+    targets, 
+    R,
+    num_single,
+    anneal=False,
+    kl_reg=False,
+    device=None
+    ):
+    if not device:
+        device = set_device()
+    if not anneal:
+        assert anneal == False
+    
+    if targets.dim() == 0:
+        targets = targets.unsqueeze(dim=0) # compatible with batch_size=1
+
+    if evidence.dim() == 1:
+        evidence = evidence.unsqueeze(dim=0)
+    
+    evidence_single = evidence[:, :num_single]
+    alpha = evidence_single + 1
+    evidence_comps = evidence[:, num_single:]
+    
+    uce_mean, kl_mean = edl_singl_comp_loss(
+        torch.digamma, 
+        targets,
+        R, 
+        alpha, 
+        evidence_comps,
+        num_single, 
+        kl_reg=kl_reg, 
+        device=device
+        )
+    return uce_mean
