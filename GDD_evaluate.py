@@ -39,7 +39,7 @@ def evaluate_model(
 ):
     entropy_lam_Dir=args.entropy_lam_Dir
     entropy_lam_GDD=args.entropy_lam_GDD
-    kl_lam = args.kl_lam
+    kl_lam_GDD = args.kl_lam_GDD
     l2_lam=args.l2_lam
     kl_reg=args.kl_reg
     exp_type=args.exp_type
@@ -101,7 +101,7 @@ def evaluate_model(
                                                     epoch, 
                                                     mydata.num_classes,
                                                     args.anneal_step, 
-                                                    kl_lam,
+                                                    kl_lam_GDD,
                                                     entropy_lam_Dir,
                                                     entropy_lam_GDD,
                                                     anneal=kl_anneal,

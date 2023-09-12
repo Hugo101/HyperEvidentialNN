@@ -65,7 +65,7 @@ def kl_GDD(alpha, evidence_comps, num_single, R, targets, device=None):
     one_GDD = GroupDirichlet(alpha, evidence_comps_custom, unique_comp_sets)
     
     alpha_one = torch.ones_like(alpha)
-    evidence_comps_one = torch.ones_like(evidence_comps_custom)
+    evidence_comps_one = torch.zeros_like(evidence_comps_custom)
     GDD_tmp = GroupDirichlet(alpha_one, evidence_comps_one, unique_comp_sets)
     log_Cg_tmp = GDD_tmp.log_normalized_constant()
     
@@ -605,7 +605,7 @@ def unified_UCE_loss(
 
     loss = uce_mean - entropy_lam_Dir * entropy - entropy_lam_GDD * entropy_GDD + kl_lam_GDD * kl_gdd
     
-    return loss, uce_mean.detach(), kl_lam_GDD.detach(), entropy_GDD.detach(), kl_mean.detach()
+    return loss, uce_mean.detach(), kl_gdd.detach(), entropy_GDD.detach(), kl_mean.detach()
     # return loss, uce_mean.detach(), entropy.detach(), entropy_GDD.detach(), kl_mean.detach()  
     # return loss, uce_mean.detach(), kl_mean.detach(), torch.tensor(0.).cuda()
 

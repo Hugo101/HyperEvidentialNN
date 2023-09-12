@@ -126,7 +126,7 @@ def make(args):
 def generateSpecPath(args):
     base_path = os.path.join(args.output_folder, args.saved_spec_dir)
     tag0 = "_".join([f"SEED{args.seed}", f"{args.num_comp}M", f"Ker{args.gauss_kernel_size}", "sweep", f"GDDexp{args.exp_type}"])
-    tag = "_".join(["lr", str(args.init_lr), "klLam", str(args.kl_lam), "EntrLamDir", str(args.entropy_lam_Dir), "EntrLamGDD", str(args.entropy_lam_GDD)])
+    tag = "_".join(["lr", str(args.init_lr), "klLamGDD", str(args.kl_lam_GDD), "EntrLamDir", str(args.entropy_lam_Dir), "EntrLamGDD", str(args.entropy_lam_GDD)])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
     base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, tag)
