@@ -6,7 +6,7 @@ from torch import linalg as LA
 from common_tools import set_device
 from helper_functions import one_hot_embedding, multi_hot_embedding_batch
 from helper_functions import complete_comp_labels, pseudo_target
-from GDD import GroupDirichlet
+from GDD import GroupDirichlet, find_partition
 from common_tools import set_device
 
 kl_loss = nn.KLDivLoss(reduction="batchmean")
@@ -43,6 +43,65 @@ def kl_divergence(alpha, num_classes, device=None):
     kl = first_term + second_term
     return kl
 
+
+def kl_GDD(alpha, evidence_comps, num_single, R, targets, device=None):
+    '''
+    alpha: the original alpha (batch)
+    evidence_comps: the evidence of composite classes (batch)
+    '''
+    ##### new alpha and c
+    one_hot_embed = one_hot_embedding(targets, num_classes=len(R), device=device)
+    one_hot_embed_cut = one_hot_embed[:, :num_single]
+    alpha = (alpha - 1) * (1 - one_hot_embed_cut) + 1
+    one_hot_comp_cut = one_hot_embed[:, num_single:]
+    evidence_comps = evidence_comps * (1 - one_hot_comp_cut)
+    #####
+    unique_comp_sets = R[num_single:]
+    uniques_elements_comp = sum(unique_comp_sets, [])
+    comp_rest_labels = list(set(range(num_single)) - set(uniques_elements_comp)) # [0,2,4,5]
+    unique_comp_sets.append(comp_rest_labels)
+    pading = torch.zeros(len(targets), 1, device=device, requires_grad=True)
+    evidence_comps_custom = torch.cat([evidence_comps, pading], dim=1)
+    one_GDD = GroupDirichlet(alpha, evidence_comps_custom, unique_comp_sets)
+    
+    alpha_one = torch.ones_like(alpha)
+    evidence_comps_one = torch.ones_like(evidence_comps_custom)
+    GDD_tmp = GroupDirichlet(alpha_one, evidence_comps_one, unique_comp_sets)
+    log_Cg_tmp = GDD_tmp.log_normalized_constant()
+    
+    ## the following is borrowed from the entropy of GDD mainly
+    log_Cg = one_GDD.log_normalized_constant()
+    num_singles = one_GDD.concentration_a.size(-1)
+    a0 = one_GDD.concentration_a.sum(-1)
+    term2 = ((one_GDD.concentration_a - 1.0) * (torch.digamma(one_GDD.concentration_a))).sum(-1)
+    
+    beta = []
+    partition_indicator = []
+    for j in range(one_GDD.n_partition):
+        # print(f"partition:{i}")
+        part_idx_curr = one_GDD.partition_list[j]
+        alpha_j = torch.sum(one_GDD.concentration_a[:, part_idx_curr], dim=1)
+        # print(alpha_sum, evidence_comps[i])
+        beta_j = alpha_j + one_GDD.concentration_b[:, j]
+        beta.append(beta_j)
+        diff = torch.digamma(beta_j) - torch.digamma(alpha_j)
+        partition_indicator.append(diff)
+    beta_tensor = torch.stack(beta, dim=1) #! if using [] then tensor, the graident will lose
+    beta0 = beta_tensor.sum(-1)
+    term3 = (a0 - num_singles)*torch.digamma(beta0)
+    
+    term4 = 0.
+    for k in range(num_singles):
+        partition_id = find_partition(one_GDD.partition_list, k)
+        term4 += partition_indicator[partition_id]*(one_GDD.concentration_a[:,k]-1)
+
+    term5 = torch.sum(one_GDD.concentration_b * torch.digamma(beta_tensor), dim=1)
+    term6 = torch.digamma(beta0)*torch.sum(one_GDD.concentration_b, dim=1)
+    
+    kl_gdd = log_Cg - log_Cg_tmp - term2 + term3 - term4 - term5 + term6
+    return -kl_gdd.mean()
+    
+    
 
 def loglikelihood_loss(y, alpha, device=None):
     if not device:
@@ -474,7 +533,7 @@ def unified_UCE_loss(
     epoch_curr, 
     num_single,
     annealing_step, 
-    kl_lam,
+    kl_lam_GDD,
     entropy_lam_Dir,
     entropy_lam_GDD,
     anneal=False,
@@ -508,15 +567,15 @@ def unified_UCE_loss(
         )
 
     ### different regularizations ###
-    # KL divergence
-    if anneal:
-        annealing_coef = torch.min(
-            torch.tensor(1.0, dtype=torch.float32, device=device),
-            torch.tensor(epoch_curr / annealing_step, dtype=torch.float32, device=device),
-        )
-        kl_div = annealing_coef * kl_mean
-    else:
-        kl_div = kl_lam * kl_mean
+    # KL divergence only for singleton classes
+    # if anneal:
+    #     annealing_coef = torch.min(
+    #         torch.tensor(1.0, dtype=torch.float32, device=device),
+    #         torch.tensor(epoch_curr / annealing_step, dtype=torch.float32, device=device),
+    #     )
+    #     kl_div = annealing_coef * kl_mean
+    # else:
+    #     kl_div = kl_lam * kl_mean
 
     # # Entropy of Dirichlet Distribution
     # entropy = Dirichlet(alpha).entropy().mean()
@@ -539,9 +598,15 @@ def unified_UCE_loss(
     else:
         entropy_GDD = torch.tensor(0.).cuda()
     
-    loss = uce_mean - entropy_lam_Dir * entropy - entropy_lam_GDD * entropy_GDD + kl_div
+    if kl_lam_GDD:
+        kl_gdd = kl_GDD(alpha, evidence_comps, num_single, R, targets, device=device)
+    else:
+        kl_gdd = torch.tensor(0.).cuda()
+
+    loss = uce_mean - entropy_lam_Dir * entropy - entropy_lam_GDD * entropy_GDD + kl_lam_GDD * kl_gdd
     
-    return loss, uce_mean.detach(), entropy.detach(), entropy_GDD.detach(), kl_mean.detach()  
+    return loss, uce_mean.detach(), kl_lam_GDD.detach(), entropy_GDD.detach(), kl_mean.detach()
+    # return loss, uce_mean.detach(), entropy.detach(), entropy_GDD.detach(), kl_mean.detach()  
     # return loss, uce_mean.detach(), kl_mean.detach(), torch.tensor(0.).cuda()
 
 

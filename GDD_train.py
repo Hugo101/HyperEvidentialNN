@@ -33,7 +33,7 @@ def train_model(
     num_epochs=args.epochs
     entropy_lam_Dir=args.entropy_lam_Dir
     entropy_lam_GDD=args.entropy_lam_GDD
-    kl_lam = args.kl_lam
+    kl_lam_GDD = args.kl_lam_GDD
     exp_type=args.exp_type
     
     wandb.watch(model, log="all", log_freq=100)
@@ -85,7 +85,7 @@ def train_model(
                 if epoch in [10,90]  and batch_idx in [66]:
                     loss_i, loss_1_i, loss_2_i, loss_3_i, loss_4_i = criterion(
                         outputs[i], labels[i], mydata.R, epoch, mydata.num_classes,
-                        args.anneal_step, kl_lam,
+                        args.anneal_step, kl_lam_GDD,
                         entropy_lam_Dir, entropy_lam_GDD,
                         anneal=args.kl_anneal,
                         kl_reg=args.kl_reg,
@@ -147,7 +147,7 @@ def train_model(
                                                     epoch, 
                                                     mydata.num_classes,
                                                     args.anneal_step, 
-                                                    kl_lam,
+                                                    kl_lam_GDD,
                                                     entropy_lam_Dir,
                                                     entropy_lam_GDD,
                                                     anneal=args.kl_anneal,
