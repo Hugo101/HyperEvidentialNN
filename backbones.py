@@ -64,6 +64,34 @@ class ResNet50(nn.Module):
         return logits
 
 
+class HENN_ResNet18(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+
+        # ResNet
+        self.network = models.resnet18(pretrained=True)
+        self.network.fc = torch.nn.Linear(512, num_classes) 
+        self.output = nn.Softplus()
+        
+    def forward(self, x):
+        logits = self.network(x)
+        logits = self.output(logits)
+        return logits
+
+
+class ResNet18(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+
+        # ResNet
+        self.network = models.resnet18(pretrained=True)
+        self.network.fc = torch.nn.Linear(512, num_classes) 
+
+    def forward(self, x):
+        logits = self.network(x)
+        return logits
+
+
 class HENN_VGG16(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
