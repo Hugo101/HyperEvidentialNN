@@ -71,6 +71,13 @@ parser.add_argument(
     type=float, help="weight for regularizer: entropy of Group Dirichlet distribution for GDD"
 )
 
+# solver only for Hierarchical classification
+parser.add_argument(
+    "--solver", default="lbfgs", 
+    type=str, help="specific experiment path.")
+
+
+
 # parser.add_argument(
 #     '--epochs_stage_1', default=25, 
 #     type=int, help='the first stage of epochs'
