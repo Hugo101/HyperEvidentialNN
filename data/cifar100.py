@@ -318,9 +318,9 @@ class CIFAR100Vague:
             else:
                 idx1.append(i)
         
-        subset_1 = Subset(dataset, idx1)  # the rest 
+        subset_1 = Subset(dataset, idx1)  # singleton examples 
         
-        for comp_label, indx in idx2.items(): # each vague example
+        for comp_label, indx in idx2.items(): # each vague class
             comp_label_subset = Subset(dataset, indx)
             copies = CustomDataset(comp_label_subset, comp_class_id=C[comp_label - self.num_classes][0])
             for j in range(1, len(C[comp_label - self.num_classes])):
