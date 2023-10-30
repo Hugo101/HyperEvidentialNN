@@ -102,7 +102,7 @@ class CustomDataset(Dataset):
         x, y_truth_single, y = deepcopy(self.dataset[index])
         if self.transform:
             x = self.transform(x)
-        if self.comp_class_id:
+        if self.comp_class_id is not None:
             return x, y_truth_single, self.comp_class_id
         else:
             return x, y_truth_single, y
