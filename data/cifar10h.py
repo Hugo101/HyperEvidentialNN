@@ -107,8 +107,8 @@ class CIFAR10h:
         ALL_LABEL_NAMES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck', 'Cat_Dog', 'Deer_Horse', 'Automobile_Truck', 'Airplane_Bird']
         
         # Load the ImageFolder dataset
-        ds_original = datasets.ImageFolder(root=self.data_dir)
-        self.class_to_idx = ds_original.class_to_idx
+        self.ds_original = datasets.ImageFolder(root=self.data_dir)
+        self.class_to_idx = self.ds_original.class_to_idx
         
         self.idx_to_class = {value:key for key, value in self.class_to_idx.items()}
         self.vague_classes_ids = [[3,5], [4,7], [1,9], [0,2]]
@@ -121,9 +121,9 @@ class CIFAR10h:
             self.R.append(el)
         print(f"Actual label sets\n R: {self.R}")
         
-        train_split, valid_split, train_idx, valid_idx = train_valid_split_local(ds_original, valid_perc=1-ratio_train, seed=self.seed)
-        # train_ds_original_n = AddLabelDataset(train_split) #add an aditional label
-        # valid_ds_original_n = AddLabelDataset(valid_split)
+        train_split, valid_split, train_idx, valid_idx = train_valid_split_local(self.ds_original, valid_perc=1-ratio_train, seed=self.seed)
+        # train_self.ds_original_n = AddLabelDataset(train_split) #add an aditional label
+        # valid_self.ds_original_n = AddLabelDataset(valid_split)
         
         
         if self.pretrain:
@@ -149,9 +149,9 @@ class CIFAR10h:
                 transforms.ToTensor(),
                 norm])
 
-        train_ds = CustomDatasetCIFAR10h(train_split, train_idx, ds_original, self.img_name_label_dict, transform=pre_norm_train)
-        valid_ds = CustomDatasetCIFAR10h(valid_split, valid_idx, ds_original, self.img_name_label_dict, transform=pre_norm_test)
-        test_ds = CustomDatasetCIFAR10h(valid_split, valid_idx, ds_original, self.img_name_label_dict, transform=pre_norm_test)
+        train_ds = CustomDatasetCIFAR10h(train_split, train_idx, self.ds_original, self.img_name_label_dict, transform=pre_norm_train)
+        valid_ds = CustomDatasetCIFAR10h(valid_split, valid_idx, self.ds_original, self.img_name_label_dict, transform=pre_norm_test)
+        test_ds = CustomDatasetCIFAR10h(valid_split, valid_idx, self.ds_original, self.img_name_label_dict, transform=pre_norm_test)
 
         if self.duplicate:
             train_ds = self.modify_vague_samples(train_ds)
@@ -186,3 +186,27 @@ class CIFAR10h:
                 copies += CustomDataset(comp_label_subset, comp_class_id=C[comp_label - self.num_classes][j])
             subset_1 = subset_1 + copies
         return subset_1
+
+
+if __name__ == "__main__":
+    # todo: the following script does not work because of the path of libraries
+    data_dir = '/home/cxl173430/data/DATASETS/'
+    batch_size = 64
+    dataset = CIFAR10h(
+            data_dir,
+            batch_size=batch_size,
+            duplicate=False)
+    print(f"class_to_idx: {dataset.class_to_idx}")
+    print(f"idx_to_class: {dataset.idx_to_class}")
+    print(f"vague_subclasses: {dataset.vague_classes_ids}")
+    print(f"Count for each class (Train): {dataset.R}")
+    print(f"Count for each class (Test): {dataset.R}")
+
+    dataset_dup = CIFAR10h(
+            data_dir,
+            batch_size=batch_size,
+            duplicate=True)
+    print(f"class_to_idx: {dataset_dup.class_to_idx}")
+    print(f"idx_to_class: {dataset_dup.idx_to_class}")
+    print(f"vague_classes_ids: {dataset_dup.vague_classes_ids}")
+    
