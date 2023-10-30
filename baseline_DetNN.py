@@ -18,7 +18,8 @@ from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
 from data.mnist import MNIST
-from backbones import EfficientNet_pretrain, ResNet50, VGG16, LeNet
+from data.cifar10h import CIFAR10h
+from backbones import EfficientNet_pretrain, ResNet50, ResNet18, VGG16, LeNet
 from helper_functions import js_subset, acc_subset
 
 
@@ -434,6 +435,15 @@ def make(args):
             num_workers=args.num_workers,
             seed=args.seed,
             )
+    elif args.dataset == "CIFAR10h":
+        mydata = CIFAR10h(
+            args.data_dir,
+            batch_size=args.batch_size,
+            duplicate=True,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+        )
     
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
@@ -443,6 +453,8 @@ def make(args):
         model = EfficientNet_pretrain(num_singles, pretrain=args.pretrain)
     elif args.backbone == "ResNet50":
         model = ResNet50(num_singles)
+    elif args.backbone == "ResNet18":
+        model = ResNet18(num_singles)
     elif args.backbone == "VGG16":
         model = VGG16(num_singles)
     elif args.backbone == "LeNet":

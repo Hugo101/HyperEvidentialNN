@@ -83,6 +83,7 @@ class CIFAR10h:
         self,
         data_dir,
         batch_size=128,
+        duplicate=False,
         ratio_train=0.9,
         pretrain=True,
         num_workers=4,
@@ -92,6 +93,7 @@ class CIFAR10h:
         start_time = time.time()
         self.data_dir = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites')
         self.batch_size = batch_size
+        self.duplicate = duplicate
         self.ratio_train = ratio_train
         self.pretrain = pretrain
         self.num_workers = num_workers
@@ -150,7 +152,11 @@ class CIFAR10h:
         train_ds = CustomDatasetCIFAR10h(train_split, train_idx, ds_original, self.img_name_label_dict, transform=pre_norm_train)
         valid_ds = CustomDatasetCIFAR10h(valid_split, valid_idx, ds_original, self.img_name_label_dict, transform=pre_norm_test)
         test_ds = CustomDatasetCIFAR10h(valid_split, valid_idx, ds_original, self.img_name_label_dict, transform=pre_norm_test)
-        
+
+        if self.duplicate:
+            train_ds = self.modify_vague_samples(train_ds)
+            valid_ds = self.modify_vague_samples(valid_ds)
+
         print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
         self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=True)
         self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=self.num_workers, pin_memory=True)
@@ -160,80 +166,23 @@ class CIFAR10h:
         print(f"Loading data finished. Time: {time_load//60:.0f}m {time_load%60:.0f}s")
         
         
-
-class CIFAR10hDuplicate: #todo: some issues still exist
-    def __init__(
-        self,
-        data_dir,
-        batch_size=128,
-        ratio_train=0.9,
-        pretrain=True,
-        num_workers=4,
-        seed=42,
-    ):
-        print("****** Loading CIFAR10h ... ******")
-        start_time = time.time()
-        self.data_dir = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_duplicates')
-        self.batch_size = batch_size
-        self.ratio_train = ratio_train
-        self.pretrain = pretrain
-        self.num_workers = num_workers
-        self.seed = seed
-        self.num_classes = 10 # fixed
-        self.num_comp = 4 # fixed
-        self.kappa = self.num_classes + self.num_comp
+    def modify_vague_samples(self, dataset):
+        C = self.vague_classes_ids
+        idx1 = [] # singleton example idx
+        idx2 = defaultdict(list) # vague examples label and their idx
+        for i in range(len(dataset)):
+            if dataset[i][2] >= self.num_classes:
+                # composite example
+                idx2[dataset[i][2]].append(i)
+            else:
+                idx1.append(i)
         
-        self.img_name_label_dict = extract_file_name_and_labels()
+        subset_1 = Subset(dataset, idx1)  # singleton examples 
         
-        ALL_LABEL_NAMES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
-        
-        # Load the ImageFolder dataset
-        ds_original = datasets.ImageFolder(root=self.data_dir)
-        self.class_to_idx = ds_original.class_to_idx
-        
-        self.idx_to_class = {value:key for key, value in self.class_to_idx.items()}
-        
-        # Cat_Dog: [3, 5]
-        # Deer_Horse: [4, 7]
-        # Automobile_Truck: [1, 9]
-        # Airplane_Bird: [0, 2]
-
-        train_split, valid_split, train_idx, valid_idx = train_valid_split_local(ds_original, valid_perc=1-ratio_train, seed=self.seed)
-        # train_ds_original_n = AddLabelDataset(train_split) #add an aditional label
-        # valid_ds_original_n = AddLabelDataset(valid_split)
-        
-        
-        if self.pretrain:
-            norm = transforms.Normalize(mean=[0.507, 0.487, 0.441], std=[0.267, 0.256, 0.276])
-            pre_norm_train = transforms.Compose([
-                transforms.RandomResizedCrop(224),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                norm])
-            pre_norm_test = transforms.Compose([
-                transforms.Resize(256),     # Resize images to 256 x 256
-                transforms.CenterCrop(224), # Center crop image
-                transforms.ToTensor(),
-                norm])
-        else:
-            norm = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-            pre_norm_train = transforms.Compose([
-                transforms.RandomCrop(32, padding=4), 
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(), 
-                norm])
-            pre_norm_test = transforms.Compose([
-                transforms.ToTensor(),
-                norm])
-
-        train_ds = CustomDatasetCIFAR10h(train_split, train_idx, ds_original, self.img_name_label_dict, transform=pre_norm_train)
-        valid_ds = CustomDatasetCIFAR10h(valid_split, valid_idx, ds_original, self.img_name_label_dict, transform=pre_norm_test)
-        test_ds = CustomDatasetCIFAR10h(valid_split, valid_idx, ds_original, self.img_name_label_dict, transform=pre_norm_test)
-        
-        print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
-        self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=True)
-        self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=self.num_workers, pin_memory=True)
-        self.test_loader = DataLoader(test_ds, batch_size=batch_size, num_workers=self.num_workers, pin_memory=True)
-        time_load = time.time() - start_time
-        
-        print(f"Loading data finished. Time: {time_load//60:.0f}m {time_load%60:.0f}s")
+        for comp_label, indx in idx2.items(): # each vague class
+            comp_label_subset = Subset(dataset, indx)
+            copies = CustomDataset(comp_label_subset, comp_class_id=C[comp_label - self.num_classes][0])
+            for j in range(1, len(C[comp_label - self.num_classes])):
+                copies += CustomDataset(comp_label_subset, comp_class_id=C[comp_label - self.num_classes][j])
+            subset_1 = subset_1 + copies
+        return subset_1
