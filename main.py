@@ -15,7 +15,8 @@ from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
 from data.mnist import MNIST
-from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_LeNet
+from data.cifar10h import CIFAR10h
+from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_ResNet18
 # from backbones import EfficientNet_pretrain, ResNet50
 from train import train_model
 from test import evaluate_vague_nonvague
@@ -75,7 +76,15 @@ def make(args):
             num_workers=args.num_workers,
             seed=args.seed,
             )
-
+    elif args.dataset == "CIFAR10h":
+        mydata = CIFAR10h(
+            args.data_dir,
+            batch_size=args.batch_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+        )
+        
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
@@ -86,6 +95,8 @@ def make(args):
         model = HENN_EfficientNet(num_classes_both, pretrain=args.pretrain)
     elif args.backbone == "ResNet50":
         model = HENN_ResNet50(num_classes_both)
+    elif args.backbone == "ResNet18":
+        model = HENN_ResNet18(num_classes_both, pretrain=args.pretrain)
     elif args.backbone == "VGG16":
         model = HENN_VGG16(num_classes_both)
     elif args.backbone == "LeNet":
