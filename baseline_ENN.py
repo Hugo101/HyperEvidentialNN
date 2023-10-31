@@ -14,8 +14,9 @@ from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
 from data.mnist import MNIST
+from data.cifar10h import CIFAR10h
 from backbones import HENN_EfficientNet, EfficientNet_pretrain
-from backbones import HENN_ResNet50, ResNet50, HENN_VGG16, HENN_LeNet
+from backbones import HENN_ResNet50, ResNet50, HENN_VGG16, HENN_LeNet, HENN_ResNet18
 from helper_functions import one_hot_embedding
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 from baseline_DetNN import evaluate_vague_nonvague_final
@@ -263,6 +264,15 @@ def make(args):
             num_workers=args.num_workers,
             seed=args.seed,
             )
+    elif args.dataset == "CIFAR10h":
+        mydata = CIFAR10h(
+            args.data_dir,
+            batch_size=args.batch_size,
+            duplicate=True,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+        )
 
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
@@ -274,6 +284,8 @@ def make(args):
             model = HENN_EfficientNet(num_singles, pretrain=args.pretrain)
         elif args.backbone == "ResNet50":
             model = HENN_ResNet50(num_singles)
+        elif args.backbone == "ResNet18":
+            model = HENN_ResNet18(num_singles, pretrain=args.pretrain)
         elif args.backbone == "VGG16":
             model = HENN_VGG16(num_singles)
         elif args.backbone == "LeNet":

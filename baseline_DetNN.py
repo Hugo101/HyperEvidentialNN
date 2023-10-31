@@ -454,7 +454,7 @@ def make(args):
     elif args.backbone == "ResNet50":
         model = ResNet50(num_singles)
     elif args.backbone == "ResNet18":
-        model = ResNet18(num_singles)
+        model = ResNet18(num_singles, pretrain=args.pretrain)
     elif args.backbone == "VGG16":
         model = VGG16(num_singles)
     elif args.backbone == "LeNet":
