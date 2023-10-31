@@ -25,7 +25,6 @@ def train_model(
     wandb.watch(model, log="all", log_freq=100)
 
     num_epochs=args.epochs
-    uncertainty=args.use_uncertainty
     kl_reg=args.kl_reg
     kl_lam=args.kl_lam
     kl_reg_teacher=args.kl_reg_teacher
@@ -76,61 +75,55 @@ def train_model(
             optimizer.zero_grad()
             # forward
             # track history if only in train
-            if uncertainty:
-                y = one_hot_embedding(labels, num_classes, device)
-                outputs = model(inputs)
-                _, preds = torch.max(outputs, 1)
+            y = one_hot_embedding(labels, num_classes, device)
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
 
-                if exp_type == 1: #expected_MSE + KL
-                    loss, loss_first, loss_second = criterion(
-                        outputs, y, epoch, num_classes, 
-                        None, kl_lam, None, None, 
-                        kl_reg=kl_reg, 
-                        device=device)
-                if exp_type == 2: #expected_CE + KL + CE
-                    loss, loss_first, loss_second, loss_third = criterion(
-                        outputs, y, epoch, num_classes, 
-                        None, kl_lam, None, None, ce_lam, None, None,
-                        kl_reg=kl_reg,
-                        exp_type=exp_type, 
-                        device=device)
-                if exp_type == 3: #expected_CE + KL + KL_teacher
-                    with torch.no_grad():
-                        logits = pretrainedModel(inputs)
-                        pretrainedProb = F.softmax(logits, dim=1)
-                    loss, loss_first, loss_second, loss_third = criterion(
-                        outputs, y, epoch, num_classes, 
-                        None, kl_lam, kl_lam_teacher, None, None,
-                        pretrainedProb, forward_kl_teacher,
-                        kl_reg=kl_reg, kl_reg_teacher=kl_reg_teacher,
-                        exp_type=exp_type,
-                        device=device)
-                if exp_type in [4,5]: #expected_CE - Entropy
-                    loss, loss_first, loss_second = criterion(
-                        outputs, y, epoch, num_classes, 
-                        None, 0, None, entropy_lam, ce_lam, None, None,
-                        kl_reg=kl_reg, entropy_reg=entropy_reg,
-                        exp_type=exp_type,
-                        device=device)
-                if exp_type == 6: # CE
-                    loss, loss_first, loss_second = criterion(
-                        outputs, y, epoch, num_classes, 
-                        None, 0, None, entropy_lam, ce_lam, None, None,
-                        kl_reg=kl_reg, entropy_reg=entropy_reg,
-                        exp_type=exp_type,
-                        device=device)
-                if exp_type == 7: #expected_CE + CE - Entropy
-                    loss, loss_first, loss_second, loss_third = criterion(
-                        outputs, y, epoch, num_classes, 
-                        None, 0, None, entropy_lam, ce_lam, None, None,
-                        kl_reg=kl_reg, entropy_reg=entropy_reg,
-                        exp_type=exp_type,
-                        device=device)
-
-            else: #cross entropy 
-                outputs = model(inputs)
-                _, preds = torch.max(outputs, 1)
-                loss = criterion(outputs, labels)
+            if exp_type == 1: #expected_MSE + KL
+                loss, loss_first, loss_second = criterion(
+                    outputs, y, epoch, num_classes, 
+                    None, kl_lam, None, None, 
+                    kl_reg=kl_reg, 
+                    device=device)
+            if exp_type == 2: #expected_CE + KL + CE
+                loss, loss_first, loss_second, loss_third = criterion(
+                    outputs, y, epoch, num_classes, 
+                    None, kl_lam, None, None, ce_lam, None, None,
+                    kl_reg=kl_reg,
+                    exp_type=exp_type, 
+                    device=device)
+            if exp_type == 3: #expected_CE + KL + KL_teacher
+                with torch.no_grad():
+                    logits = pretrainedModel(inputs)
+                    pretrainedProb = F.softmax(logits, dim=1)
+                loss, loss_first, loss_second, loss_third = criterion(
+                    outputs, y, epoch, num_classes, 
+                    None, kl_lam, kl_lam_teacher, None, None,
+                    pretrainedProb, forward_kl_teacher,
+                    kl_reg=kl_reg, kl_reg_teacher=kl_reg_teacher,
+                    exp_type=exp_type,
+                    device=device)
+            if exp_type in [4,5]: #expected_CE - Entropy
+                loss, loss_first, loss_second = criterion(
+                    outputs, y, epoch, num_classes, 
+                    None, 0, None, entropy_lam, ce_lam, None, None,
+                    kl_reg=kl_reg, entropy_reg=entropy_reg,
+                    exp_type=exp_type,
+                    device=device)
+            if exp_type == 6: # CE
+                loss, loss_first, loss_second = criterion(
+                    outputs, y, epoch, num_classes, 
+                    None, 0, None, entropy_lam, ce_lam, None, None,
+                    kl_reg=kl_reg, entropy_reg=entropy_reg,
+                    exp_type=exp_type,
+                    device=device)
+            if exp_type == 7: #expected_CE + CE - Entropy
+                loss, loss_first, loss_second, loss_third = criterion(
+                    outputs, y, epoch, num_classes, 
+                    None, 0, None, entropy_lam, ce_lam, None, None,
+                    kl_reg=kl_reg, entropy_reg=entropy_reg,
+                    exp_type=exp_type,
+                    device=device)
 
             loss.backward()
             optimizer.step()
