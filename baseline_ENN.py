@@ -278,45 +278,33 @@ def make(args):
     num_comps = mydata.num_comp
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
 
-    if use_uncertainty:
-        print("# use softplus activated model")
-        if args.backbone == "EfficientNet-b3":
-            model = HENN_EfficientNet(num_singles, pretrain=args.pretrain)
-        elif args.backbone == "ResNet50":
-            model = HENN_ResNet50(num_singles)
-        elif args.backbone == "ResNet18":
-            model = HENN_ResNet18(num_singles, pretrain=args.pretrain)
-        elif args.backbone == "VGG16":
-            model = HENN_VGG16(num_singles)
-        elif args.backbone == "LeNet":
-            model = HENN_LeNet(num_singles)
-        else:
-            print(f"### ERROR: The backbone {args.backbone} is invalid!")
+    print("# use softplus activated model")
+    if args.backbone == "EfficientNet-b3":
+        model = HENN_EfficientNet(num_singles, pretrain=args.pretrain)
+    elif args.backbone == "ResNet50":
+        model = HENN_ResNet50(num_singles)
+    elif args.backbone == "ResNet18":
+        model = HENN_ResNet18(num_singles, pretrain=args.pretrain)
+    elif args.backbone == "VGG16":
+        model = HENN_VGG16(num_singles)
+    elif args.backbone == "LeNet":
+        model = HENN_LeNet(num_singles)
     else:
-        print("# use regular model without activation (softmax will be used later")
-        if args.backbone == "EfficientNet-b3":
-            model = EfficientNet_pretrain(num_singles, pretrain=args.pretrain)
-        elif args.backbone == "ResNet50":
-            model = ResNet50(num_singles)
-        else:
-            print(f"### ERROR: The backbone {args.backbone} is invalid!")
+        print(f"### ERROR: The backbone {args.backbone} is invalid!")
+
     model = model.to(device)
 
-    if use_uncertainty:
-        # if args.digamma:
-        #     print("### Loss type: edl_digamma_loss")
-        #     criterion = edl_digamma_loss
-        # elif args.log:
-        #     print("### Loss type: edl_log_loss")
-        #     criterion = edl_log_loss
-        # elif args.mse:
-        print("### Loss type: edl_digamma_loss")
-        criterion = edl_digamma_loss
-        # else:
-        #     print("ERROR: --uncertainty requires --mse, --log or --digamma.")
-    else:
-        print("### Loss type: CrossEntropy (no uncertainty)")
-        criterion = nn.CrossEntropyLoss()
+    # if args.digamma:
+    #     print("### Loss type: edl_digamma_loss")
+    #     criterion = edl_digamma_loss
+    # elif args.log:
+    #     print("### Loss type: edl_log_loss")
+    #     criterion = edl_log_loss
+    # elif args.mse:
+    print("### Loss type: edl_digamma_loss")
+    criterion = edl_digamma_loss
+    # else:
+    #     print("ERROR: --uncertainty requires --mse, --log or --digamma.")
 
     optimizer = optim.Adam(model.parameters(), lr=args.init_lr)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[milestone1, milestone2], gamma=0.1)
@@ -385,17 +373,13 @@ def main(project_name, args_all):
             valid_loader = mydata.valid_loader
             test_loader = mydata.test_loader
             R = mydata.R
-            
-            use_uncertainty = args.uncertainty
-            if use_uncertainty:
-                # if args.digamma:
-                #     saved_path = os.path.join(base_path, "model_uncertainty_digamma.pt")
-                # if args.log:
-                #     saved_path = os.path.join(base_path, "model_uncertainty_log.pt")
-                # if args.mse:
-                saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
-            else:
-                saved_path = os.path.join(base_path_spec_hyper, "model_CrossEntropy.pt")
+
+            # if args.digamma:
+            #     saved_path = os.path.join(base_path, "model_uncertainty_digamma.pt")
+            # if args.log:
+            #     saved_path = os.path.join(base_path, "model_uncertainty_log.pt")
+            # if args.mse:
+            saved_path = os.path.join(base_path_spec_hyper, "model_uncertainty_digamma.pt")
 
             checkpoint = torch.load(saved_path, map_location=device)
             model.load_state_dict(checkpoint["model_state_dict"])
