@@ -121,7 +121,7 @@ class CIFAR10h:
             self.R.append(el)
         print(f"Actual label sets\n R: {self.R}")
         
-        train_split, valid_split, train_idx, valid_idx = train_valid_split_local(self.ds_original, valid_perc=1-ratio_train, seed=self.seed)
+        train_split, valid_split, train_idx, valid_idx = train_valid_split_local(self.ds_original, valid_perc=1-ratio_train) #todo: fixed the seed for now
         # train_self.ds_original_n = AddLabelDataset(train_split) #add an aditional label
         # valid_self.ds_original_n = AddLabelDataset(valid_split)
         
