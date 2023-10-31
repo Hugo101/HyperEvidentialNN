@@ -204,7 +204,6 @@ def make(args):
     mydata = None
     num_singles = 0
     num_comps = 0
-    use_uncertainty = args.uncertainty
     milestone1 = args.milestone1
     milestone2 = args.milestone2
     device = args.device
@@ -303,8 +302,6 @@ def make(args):
     # elif args.mse:
     print("### Loss type: edl_digamma_loss")
     criterion = edl_digamma_loss
-    # else:
-    #     print("ERROR: --uncertainty requires --mse, --log or --digamma.")
 
     optimizer = optim.Adam(model.parameters(), lr=args.init_lr)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[milestone1, milestone2], gamma=0.1)
