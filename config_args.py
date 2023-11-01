@@ -22,9 +22,9 @@ parser.add_argument(
     '--gpu', default=0, 
     type=int, help='The index of the gpu used')
 
-# parser.add_argument(
-    # '--backbone', default='EfficientNet', 
-    # type=str, help='backbone models')
+parser.add_argument(
+    '--backbone', default='EfficientNet', 
+    type=str, help='backbone models')
 
 # parser.add_argument(
 #     '--batch_size', default=64, 
