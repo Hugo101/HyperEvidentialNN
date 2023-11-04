@@ -478,7 +478,7 @@ def generateSpecPath(args):
     seed=args.seed
     
     base_path = os.path.join(output_folder, saved_spec_dir)
-    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", f"Seed{seed}", "sweep_DNN"])
+    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", f"Seed{seed}", f"BB{args.backbone}", "sweep_DNN"])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
     base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, str(init_lr))

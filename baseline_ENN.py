@@ -316,10 +316,11 @@ def generateSpecPath(args):
     init_lr=args.init_lr
     seed=args.seed
     base_path = os.path.join(output_folder, saved_spec_dir)
-    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}",f"Seed{seed}", "sweep_ENN"])
+    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}",f"Seed{seed}",f"BB{args.backbone}", "sweep_ENN"])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
-    base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, str(init_lr))
+    tag = "_".join([f"lr{init_lr}", f"EntrLam{args.entropy_lam}"])
+    base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, tag)
     create_path(base_path_spec_hyper)
     return base_path_spec_hyper
 
