@@ -15,6 +15,7 @@ from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
 from data.mnist import MNIST
 from data.cifar10h import CIFAR10h
+from data.cifar10 import CIFAR10
 from backbones import HENN_EfficientNet, EfficientNet_pretrain
 from backbones import HENN_ResNet50, ResNet50, HENN_VGG16, HENN_LeNet, HENN_ResNet18
 from helper_functions import one_hot_embedding
@@ -265,6 +266,15 @@ def make(args):
             )
     elif args.dataset == "CIFAR10h":
         mydata = CIFAR10h(
+            args.data_dir,
+            batch_size=args.batch_size,
+            duplicate=True,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+        )
+    elif args.dataset == "CIFAR10":
+        mydata = CIFAR10(
             args.data_dir,
             batch_size=args.batch_size,
             duplicate=True,
