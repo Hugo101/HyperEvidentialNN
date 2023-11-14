@@ -36,27 +36,37 @@ def extract_file_name_and_labels():
     return file_name_label_dict
 
 
+def extract_file_name_and_labels_Train():
+    # file names
+    data_path = "/home/cxl173430/data/DATASETS/cifar-10-batches-py/"
+    file_name_label_dict = {}
+    for i in range(1,6):
+        train_data = unpickle(data_path+'data_batch_'+str(i))
+        for idx, (file_name, label_id) in enumerate(zip(train_data[b'filenames'], train_data[b'labels'])):
+            file_name = file_name.decode('ascii')
+            if file_name not in file_name_label_dict:
+                # original without relabeling
+                file_name_label_dict[file_name] = label_id
+    return file_name_label_dict
+
 
 class CustomDatasetCIFAR10hTest(Dataset):
-    def __init__(self, dataset_split, split_idx, dataset, file_name_label_dict, transform=None):
-        self.dataset_split = dataset_split
-        self.split_idx = split_idx
+    def __init__(self, dataset, file_name_label_dict, transform=None):
         self.dataset = dataset
         self.transform = transform
         self.img_name_label_dict = file_name_label_dict
         
     def __getitem__(self, index):
-        x, y = deepcopy(self.dataset_split[index]) # y: relabeled label, composite label perhaps
+        x, y = deepcopy(self.dataset[index]) # y: relabeled label, composite label perhaps
         if self.transform:
             x = self.transform(x)
-        # find the original index in the original dataset before splitting
-        idx = self.split_idx[index]
-        img_name = self.dataset.imgs[idx][0]
+
+        img_name = self.dataset.imgs[index][0]
         img_name = img_name.split('/')[-1]
         return x, self.img_name_label_dict[img_name], y
 
     def __len__(self):
-        return len(self.dataset_split)
+        return len(self.dataset)
 
 
 class CustomDatasetCIFAR10(Dataset):
@@ -121,6 +131,7 @@ class CIFAR10:
         self.num_comp = 4 # fixed
         self.kappa = self.num_classes + self.num_comp
         
+        self.img_name_label_dict_Train = extract_file_name_and_labels_Train()
         self.img_name_label_dict = extract_file_name_and_labels()
         
         ALL_LABEL_NAMES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck', 'Cat_Dog', 'Deer_Horse', 'Automobile_Truck', 'Airplane_Bird']
@@ -168,11 +179,11 @@ class CIFAR10:
                 transforms.ToTensor(),
                 norm])
 
-        train_ds = CustomDatasetCIFAR10(train_split, train_idx, self.ds_original, self.img_name_label_dict, transform=pre_norm_train)
-        valid_ds = CustomDatasetCIFAR10(valid_split, valid_idx, self.ds_original, self.img_name_label_dict, transform=pre_norm_test)
+        train_ds = CustomDatasetCIFAR10(train_split, train_idx, self.ds_original, self.img_name_label_dict_Train, transform=pre_norm_train)
+        valid_ds = CustomDatasetCIFAR10(valid_split, valid_idx, self.ds_original, self.img_name_label_dict_Train, transform=pre_norm_test)
         
         self.ds_test = datasets.ImageFolder(root=self.data_dir_test)
-        test_ds = CustomDatasetCIFAR10hTest(valid_split, valid_idx, self.ds_original, self.img_name_label_dict, transform=pre_norm_test)
+        test_ds = CustomDatasetCIFAR10hTest(self.ds_test, self.img_name_label_dict, transform=pre_norm_test)
 
         if self.duplicate:
             train_ds = self.modify_vague_samples(train_ds)
