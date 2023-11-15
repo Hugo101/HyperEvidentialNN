@@ -1,7 +1,6 @@
-import torch
 import os
-from torchvision import datasets, transforms, utils
-from torch.utils.data import sampler, random_split, DataLoader, ConcatDataset, Subset, Dataset
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, ConcatDataset, Subset, Dataset
 from helper_functions import CustomDataset, AddLabelDataset
 from data.tinyImageNet import train_valid_split
 import time

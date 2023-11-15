@@ -6,7 +6,7 @@ import yaml
 import wandb
 import torch
 torch.set_num_threads(4)
-from torch import optim, nn
+from torch import optim
 
 from config_args import parser
 from common_tools import create_path, set_device, set_random_seeds
@@ -16,8 +16,8 @@ from data.breeds import BREEDSVague
 from data.mnist import MNIST
 from data.cifar10h import CIFAR10h
 from data.cifar10 import CIFAR10
-from backbones import HENN_EfficientNet, EfficientNet_pretrain
-from backbones import HENN_ResNet50, ResNet50, HENN_VGG16, HENN_LeNet, HENN_ResNet18
+from backbones import HENN_EfficientNet
+from backbones import HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_ResNet18
 from helper_functions import one_hot_embedding
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 from baseline_DetNN import evaluate_vague_nonvague_final

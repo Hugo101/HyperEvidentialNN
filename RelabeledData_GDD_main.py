@@ -59,7 +59,7 @@ def make(args):
     elif args.backbone == "ResNet50":
         model = HENN_ResNet50(num_classes_both)
     elif args.backbone == "ResNet18":
-        model = HENN_ResNet18(num_classes_both)
+        model = HENN_ResNet18(num_classes_both, pretrain=args.pretrain)
     elif args.backbone == "VGG16":
         model = HENN_VGG16(num_classes_both)
     elif args.backbone == "LeNet":
@@ -179,19 +179,19 @@ def main(args):
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, bestModelGT=True, train_flag=3)
 
-        # #! Training set for debugging
-        # #Evaluation, Inference
-        print(f"\n### (TrainingSet) Evaluate the model after all epochs:")
-        evaluate_vague_nonvague(
-            model, mydata.train_loader, mydata.R, 
-            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, train_flag=1)
+        # # #! Training set for debugging
+        # # #Evaluation, Inference
+        # print(f"\n### (TrainingSet) Evaluate the model after all epochs:")
+        # evaluate_vague_nonvague(
+        #     model, mydata.train_loader, mydata.R, 
+        #     mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
+        #     None, device, train_flag=1)
 
-        print(f"\n### (TrainingSet) Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
-        evaluate_vague_nonvague(
-            model_best_from_valid, mydata.train_loader, mydata.R, 
-            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, bestModel=True, train_flag=1)
+        # print(f"\n### (TrainingSet) Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
+        # evaluate_vague_nonvague(
+        #     model_best_from_valid, mydata.train_loader, mydata.R, 
+        #     mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
+        #     None, device, bestModel=True, train_flag=1)
 
 
 if __name__ == "__main__":
