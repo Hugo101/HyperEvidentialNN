@@ -1,4 +1,5 @@
 import torch
+torch.set_num_threads(4)
 import os
 from torchvision import datasets, transforms, utils
 from torch.utils.data import sampler, random_split, DataLoader, ConcatDataset, Subset, Dataset
@@ -40,7 +41,7 @@ def extract_file_name_and_labels_Train():
     # file names
     data_path = "/home/cxl173430/data/DATASETS/cifar-10-batches-py/"
     file_name_label_dict = {}
-    for i in range(1,6):
+    for i in range(1,5):
         train_data = unpickle(data_path+'data_batch_'+str(i))
         for idx, (file_name, label_id) in enumerate(zip(train_data[b'filenames'], train_data[b'labels'])):
             file_name = file_name.decode('ascii')
@@ -192,7 +193,7 @@ class CIFAR10:
         print(f'Data splitted. Train, Valid, Test size: {len(train_ds), len(valid_ds), len(test_ds)}')
         self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=True)
         self.valid_loader = DataLoader(valid_ds, batch_size=batch_size, num_workers=self.num_workers, pin_memory=True)
-        self.test_loader = DataLoader(test_ds, batch_size=batch_size, num_workers=self.num_workers, pin_memory=True)
+        self.test_loader  = DataLoader(test_ds,  batch_size=batch_size, num_workers=self.num_workers, pin_memory=True)
         time_load = time.time() - start_time
         
         print(f"Loading data finished. Time: {time_load//60:.0f}m {time_load%60:.0f}s")
