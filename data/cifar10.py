@@ -1,5 +1,4 @@
 import torch
-torch.set_num_threads(4)
 import os
 from torchvision import datasets, transforms, utils
 from torch.utils.data import sampler, random_split, DataLoader, ConcatDataset, Subset, Dataset

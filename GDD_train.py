@@ -1,7 +1,6 @@
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 import torch
-torch.set_num_threads(4)
 import copy
 import time 
 import wandb
