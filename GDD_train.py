@@ -80,23 +80,23 @@ def train_model(
             outputs = model(inputs) # evidence output
             _, preds = torch.max(outputs, 1)
 
-            #! debugging
-            for i in range(batch_size):
-                if epoch in [10,90]  and batch_idx in [66]:
-                    loss_i, loss_1_i, loss_2_i, loss_3_i, loss_4_i = criterion(
-                        outputs[i], labels[i], mydata.R, epoch, mydata.num_classes,
-                        args.anneal_step, kl_lam_GDD,
-                        entropy_lam_Dir, entropy_lam_GDD,
-                        anneal=args.kl_anneal,
-                        kl_reg=args.kl_reg,
-                        device=device)
-                    flag_singleton = labels[i] < mydata.num_classes
-                    print(f"### Ep {epoch}-batch {batch_idx}/{len(dataloader)}, %%% Example {i}/{batch_size}, \
-                          FlagSingleton?: {flag_singleton},  \n \
-                          GTvague: {labels[i]}, GT: {targetsGT[i]}, Pred: {preds[i]}, \n \
-                          Evidence: {outputs[i].data.cpu()}, \n \
-                          loss_i: {loss_i:.4f}, lossUCE:{loss_1_i:.4f}, EntrDir_2:{loss_2_i:.4f},\
-                          EntrGDD_3:{loss_3_i:.4f}, KL_4:{loss_4_i:.4f}.")
+            # #! debugging
+            # for i in range(batch_size):
+            #     if epoch in [10,90]  and batch_idx in [66]:
+            #         loss_i, loss_1_i, loss_2_i, loss_3_i, loss_4_i = criterion(
+            #             outputs[i], labels[i], mydata.R, epoch, mydata.num_classes,
+            #             args.anneal_step, kl_lam_GDD,
+            #             entropy_lam_Dir, entropy_lam_GDD,
+            #             anneal=args.kl_anneal,
+            #             kl_reg=args.kl_reg,
+            #             device=device)
+            #         flag_singleton = labels[i] < mydata.num_classes
+            #         print(f"### Ep {epoch}-batch {batch_idx}/{len(dataloader)}, %%% Example {i}/{batch_size}, \
+            #               FlagSingleton?: {flag_singleton},  \n \
+            #               GTvague: {labels[i]}, GT: {targetsGT[i]}, Pred: {preds[i]}, \n \
+            #               Evidence: {outputs[i].data.cpu()}, \n \
+            #               loss_i: {loss_i:.4f}, lossUCE:{loss_1_i:.4f}, EntrDir_2:{loss_2_i:.4f},\
+            #               EntrGDD_3:{loss_3_i:.4f}, KL_4:{loss_4_i:.4f}.")
             
             ########################
             # loss_batch = 0.
