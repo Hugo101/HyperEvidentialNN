@@ -10,7 +10,7 @@ torch.set_num_threads(4)
 from torch import optim
 
 from config_args import parser  
-from common_tools import create_path, set_device, dictToObj, set_random_seeds
+from common_tools import create_path, set_device, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague

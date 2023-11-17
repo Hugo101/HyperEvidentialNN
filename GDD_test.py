@@ -1,12 +1,13 @@
 import torch
-import matplotlib.pyplot as plt
-from sklearn import metrics
+# import matplotlib.pyplot as plt
+# from sklearn import metrics
 from sklearn.metrics import precision_score, recall_score, f1_score
 # from loss import lossFunc
 from collections import Counter
 import wandb
 
-from helper_functions import projection_prob, meanGDD, js_subset, vague_belief_mass, confidence_interval
+from helper_functions import meanGDD, js_subset, confidence_interval
+# from helper_functions import projection_prob, vague_belief_mass
 
 
 def evaluate_vague_result_log(

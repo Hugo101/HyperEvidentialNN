@@ -6,22 +6,19 @@ import yaml
 import wandb 
 import copy 
 import torch
-torch.set_num_threads(4)
+torch.set_num_threads(1)
 from torch import optim
 
 from config_args import parser  
-from common_tools import create_path, set_device, dictToObj, set_random_seeds
+from common_tools import create_path, set_device, set_random_seeds
 from data.cifar10h import CIFAR10h
 from data.cifar10 import CIFAR10
-from data.tinyImageNet import tinyImageNetVague
-from data.breeds import BREEDSVague
-from data.mnist import MNIST
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_LeNet_v2, HENN_ResNet18
 # from backbones import EfficientNet_pretrain, ResNet50
 from GDD_train import train_model
 from GDD_test import evaluate_vague_nonvague
-from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
-from loss import henn_gdd, unified_UCE_loss
+from loss import edl_digamma_loss
+from loss import unified_UCE_loss
 
 
 def make(args):
