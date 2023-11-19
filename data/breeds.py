@@ -12,6 +12,7 @@ from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader, Subset
 from torchvision import transforms
+from torchvision.transforms import InterpolationMode
 
 from helper_functions import CustomDataset
 from HyperEvidentialNN.robustness.robustness.tools import folder
@@ -164,10 +165,17 @@ def make_vague_samples(
     gauss_kernel_size=3, num_samples_subclass=450):
     trans_blur = None
     if blur:
-        sigma_v = 0.3 * ((gauss_kernel_size - 1) * 0.5 - 1) + 0.8
-        # sigma_v = gauss_kernel_size / 3
-        trans_blur = transforms.GaussianBlur(kernel_size=gauss_kernel_size, sigma=sigma_v)
-    
+        # # Gaussian Blurring
+        # sigma_v = 0.3 * ((gauss_kernel_size - 1) * 0.5 - 1) + 0.8
+        # # sigma_v = gauss_kernel_size / 3
+        # trans_blur = transforms.GaussianBlur(kernel_size=gauss_kernel_size, sigma=sigma_v)
+        
+        # Bicubic Blurring
+        ker = gauss_kernel_size
+        img_size = 224
+        low_size = math.floor(img_size / ker + 1e-9)
+        trans_blur = transforms.Resize(low_size, InterpolationMode.BICUBIC)
+
     # print()
     print(f"A: {num_single}, {num_single_comp}, {vague_classes_ids}")
     all_sample_indices, sample_idx_by_class = get_sample_idx_by_class(dataset, num_single)
