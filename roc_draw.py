@@ -121,9 +121,9 @@ def evaluate_set_ENN(model, data_loader, W, K, device):
     labels_all = torch.cat(labels_all, dim=0)
     un_vacuity = vacuity_SL(outputs_all + 1)
     un_vacuity = un_vacuity.cpu().numpy()
-    # un_dis = dissonance_SL(outputs_all + 1)
+    un_dis = dissonance_SL(outputs_all + 1)
     
-    return un_vacuity
+    return un_vacuity, un_dis
 
 
 
@@ -186,14 +186,15 @@ def draw_roc(
     is_vague, vaguenesses = evaluate_set_HENN(model_HENN, data_loader, W, num_singles, device)
     metrics.append(vaguenesses)
     
-    vacuity_ENN = evaluate_set_ENN(model_ENN, data_loader, W, num_singles, device)
+    vacuity_ENN, diss_ENN = evaluate_set_ENN(model_ENN, data_loader, W, num_singles, device)
     metrics.append(vacuity_ENN)
-    # metrics.append(diss_ENN)
+    metrics.append(diss_ENN)
     
     entropy_DNN = evaluate_set_DNN(model_DNN, data_loader, W, num_singles, device)
     metrics.append(entropy_DNN)
     
-    tag = ["Vagueness-HENN", "Uncertainty-ENN", "Entropy-DNN"]
+    # tag = ["Vagueness-HENN", "Uncertainty-ENN", "Entropy-DNN"]
+    tag = ["Vagueness", "Vacuity", "Dissonance", "Entropy"]
     
     for i in range(len(metrics)):
         fpr, tpr, _ = roc_curve(is_vague, metrics[i])
@@ -201,7 +202,7 @@ def draw_roc(
 
         # name = f"{y_onehot.columns[i]} (AUC={auc_score:.2f})"
         name = f"{tag[i]} (AUC={auc_score:.2f})"
-        fig.add_trace(go.Scatter(x=fpr, y=tpr, name=name, mode='lines', line=dict(width=4)))
+        fig.add_trace(go.Scatter(x=fpr, y=tpr, name=name, mode='lines', line=dict(width=3)))
     
     fig.update_layout(
         title={
@@ -225,15 +226,15 @@ def draw_roc(
         ),
         font=dict(
     #         family="Courier New, monospace",
-            size=20,
+            size=25,
     #         color="RebeccaPurple"
         ),
         legend=dict(
             # yanchor="top",
-            y=0.05,
-            # xanchor="left",
-            x=0.3,
-            font=dict(size= 15))
+            y=0.01,
+            xanchor="right",
+            x=0.9,
+            font=dict(size= 20))
     )
 
     fig.show()
@@ -353,18 +354,25 @@ if __name__ == "__main__":
         default="/home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/", 
         type=str, help="where results will be saved."
     )
-    parser.add_argument(
-        "--saved_spec_dir", default="CIFAR100/Statistics", 
-        type=str, help="specific experiment path."
-        )
+    # parser.add_argument(
+    #     "--saved_spec_dir", default="CIFAR100/Statistics", 
+    #     type=str, help="specific experiment path."
+    #     )
     parser.add_argument('--gpu', default=0, type=int, help='GPU ID')
     parser.add_argument('--seed', default=42, type=int, help='random seed')
-
+    parser.add_argument('--dataset', default="cifar100", type=str, help='dataset name')
+    parser.add_argument('--gauss_kernel_size', default=7, type=int, help='gaussian kernel size')
+    parser.add_argument('--num_comp', default=15, type=int, help='number of composite classes')
+    
     args = parser.parse_args()
     opt = vars(args)
 
     # build the path to save model and results
-    base_path = os.path.join(args.output_folder, args.saved_spec_dir)
+    if args.dataset == "tinyimagenet":
+        saved_spec_dir = f"Tiny/Statistics"
+    if args.dataset == "cifar100":
+        saved_spec_dir = f"CIFAR100/Statistics"
+    base_path = os.path.join(args.output_folder, saved_spec_dir)
     saved_path = os.path.join(base_path, "ROC_figures")
     config_file = os.path.join(saved_path, "config.yml")
     CONFIG = yaml.load(open(config_file), Loader=yaml.FullLoader)

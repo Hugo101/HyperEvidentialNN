@@ -16,6 +16,7 @@ from common_tools import create_path, set_device, dictToObj, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.cifar10h import CIFAR10h
+from data.cifar10 import CIFAR10
 from data.breeds import BREEDSVague
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_ResNet18
 from backbones import EfficientNet_pretrain, ResNet50, VGG16, ResNet18
@@ -259,6 +260,14 @@ def make(args):
             num_workers=args.num_workers,
             seed=args.seed,
         )
+    elif args.dataset == "CIFAR10":
+        mydata = CIFAR10(
+            args.data_dir,
+            batch_size=args.batch_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+        )
 
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
@@ -300,15 +309,25 @@ def main(args):
 
     metrics = []
     # for loop for different models
+    # seeds = [42, 18, 86]
     seeds = [42, 18, 86, 98, 60]
     for seed in seeds:
-        spec_HENN = f"SEED{seed}_BBResNet18_5M_Ker11_sweep_GDDexp101/lr_0.0001_klLamGDD_0.0_EntrLamDir_0.0_EntrLamGDD_1"
+        # # for dataset CIFAR10h-relabeled
+        # spec_HENN = f"SEED{seed}_BBResNet18_5M_Ker11_sweep_GDDexp101/lr_0.0001_klLamGDD_0.0_EntrLamDir_0.0_EntrLamGDD_1"
+        # spec_ENN = f"5M_ker11_Seed{seed}_BBResNet18_sweep_ENN/lr0.001_EntrLam0.01"
+        # spec_DNN = f"5M_ker11_Seed{seed}_sweep_DNN/0.001"
+        
+        # # for dataset CIFAR10-relabeled
+        # spec_HENN = f"SEED{seed}_BBResNet18_5M_Ker11_sweep_GDDexp101/lr_0.001_klLamGDD_0.0_EntrLamDir_0.0_EntrLamGDD_1"
+        # spec_ENN = f"5M_ker11_Seed{seed}_BBResNet18_sweep_ENN/lr0.001_EntrLam0.01"
+        # spec_DNN = f"5M_ker11_Seed{seed}_BBResNet18_sweep_DNN/0.001"
+        
+        # for dataset CIFAR10-relabeled pretrained Model
+        spec_HENN = f"SEED{seed}_BBEfficientNet-b3_5M_Ker11_sweep_GDDexp101/lr_1e-05_klLamGDD_0.0_EntrLamDir_0.0_EntrLamGDD_1"
+        spec_ENN = f"5M_ker11_Seed{seed}_BBEfficientNet-b3_sweep_ENN/lr0.0001_EntrLam0.01"
+        spec_DNN = f"5M_ker11_Seed{seed}_BBEfficientNet-b3_sweep_DNN/1e-05"
         saved_path_HENN = os.path.join(args.base_path_spec_HENN, spec_HENN, "model_uncertainty_gdd.pt")
-        
-        spec_ENN = f"5M_ker11_Seed{seed}_BBResNet18_sweep_ENN/lr0.001_EntrLam0.01"
         saved_path_ENN = os.path.join(args.base_path_spec_ENN, spec_ENN, "model_uncertainty_digamma.pt")
-        
-        spec_DNN = f"5M_ker11_Seed{seed}_sweep_DNN/0.001"
         saved_path_DNN = os.path.join(args.base_path_spec_DNN, spec_DNN, "model_CrossEntropy.pt")
         
         checkpoint = torch.load(saved_path_HENN, map_location=device)
@@ -335,7 +354,7 @@ def main(args):
     metrics.append(is_vague)
     
     # save the metrics using pickle
-    save_path = os.path.join("metrics.pkl")
+    save_path = os.path.join(f"{args.dataset}_metrics.pkl")
     with open(save_path, "wb") as f:
         pkl.dump(metrics, f)
     print(f"### Save the metrics to {save_path}")
@@ -355,7 +374,7 @@ if __name__ == "__main__":
     #     )
     parser.add_argument('--gpu', default=0, type=int, help='GPU ID')
     parser.add_argument('--seed', default=42, type=int, help='random seed')
-    parser.add_argument('--dataset', default="CIFAR10h", type=str, help='dataset name')
+    parser.add_argument('--dataset', default="CIFAR10", type=str, help='dataset name')
     parser.add_argument('--gauss_kernel_size', default=7, type=int, help='gaussian kernel size')
     parser.add_argument('--num_comp', default=15, type=int, help='number of composite classes')
     
@@ -365,10 +384,12 @@ if __name__ == "__main__":
     # build the path to save model and results
     if args.dataset == "tinyimagenet":
         saved_spec_dir = f"Tiny/Statistics"
-    if args.dataset == "cifar100":
+    elif args.dataset == "cifar100":
         saved_spec_dir = f"CIFAR100/Statistics"
-    if args.dataset == "CIFAR10h":
+    elif args.dataset == "CIFAR10h":
         saved_spec_dir = f"CIFAR10h/Statistics"
+    elif args.dataset == "CIFAR10":
+        saved_spec_dir = f"CIFAR10/Statistics"
     base_path = os.path.join(args.output_folder, saved_spec_dir)
     saved_path = os.path.join(base_path, "ROC_figures")
     config_file = os.path.join(saved_path, "config.yml")
@@ -417,6 +438,19 @@ if __name__ == "__main__":
         
         # spec_dir = "sweep_DNN_1030/5M_ker11_Seed42_BBEfficientNet-b3_sweep_DNN/1e-05"
         spec_dir = "sweep_DNN_1030_pretrainFalse"
+        opt["base_path_spec_DNN"] = os.path.join(base_path, spec_dir)
+    
+    elif args.dataset == "CIFAR10":
+        spec_dir = "sweep_GDD_GDDentr_1114" 
+        # spec_dir = "sweep_GDD_GDDentr_1114_pretrainFalse" 
+        opt["base_path_spec_HENN"] = os.path.join(base_path, spec_dir)
+        
+        spec_dir = "sweep_ENN_1116"
+        # spec_dir = "sweep_ENN_1114_pretrainFalse"
+        opt["base_path_spec_ENN"] = os.path.join(base_path, spec_dir)
+        
+        spec_dir = "sweep_DNN_1115"
+        # spec_dir = "sweep_DNN_1114_pretrainFalse"
         opt["base_path_spec_DNN"] = os.path.join(base_path, spec_dir)
     
     # convert args from Dict to Object
