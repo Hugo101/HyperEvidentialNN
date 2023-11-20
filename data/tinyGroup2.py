@@ -34,12 +34,11 @@ def extract_file_name_and_labels():
     ds_original = datasets.ImageFolder(root=data_dir)
     class_2_idx = ds_original.class_to_idx
     
-    file_name_label_dict = {}
     target_path = "selected_subclasses_group_2"
 
     file_name_and_gt_label_ALL = {}
     # tranverse all the folders
-    for file_name in os.listdir(target_path):
+    for file_name in os.listdir(data_path+target_path):
         label_nid = file_name.split("_")[0]
         label_id = class_2_idx[label_nid]
         file_name_and_gt_label_ALL[file_name] = label_id
