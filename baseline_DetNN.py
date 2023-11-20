@@ -20,6 +20,7 @@ from data.breeds import BREEDSVague
 from data.mnist import MNIST
 from data.cifar10h import CIFAR10h
 from data.cifar10 import CIFAR10
+from data.tinyGroup2 import tinyGroup2
 from backbones import EfficientNet_pretrain, ResNet50, ResNet18, VGG16, LeNet
 from helper_functions import js_subset, acc_subset
 
@@ -454,7 +455,15 @@ def make(args):
             num_workers=args.num_workers,
             seed=args.seed,
         )
-    
+    elif args.dataset == "tinyGroup2":
+        mydata = tinyGroup2(
+            args.data_dir,
+            batch_size=args.batch_size,
+            duplicate=True,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+        )
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
