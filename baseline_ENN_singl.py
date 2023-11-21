@@ -197,8 +197,8 @@ def make(args):
         mydata = tinyImageNet(
             args.data_dir,
             batch_size=args.batch_size,
-            num_workers=args.num_workers,
-            seed=args.seed)
+            num_workers=args.num_workers
+            )
 
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp

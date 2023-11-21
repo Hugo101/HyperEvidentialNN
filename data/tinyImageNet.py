@@ -44,11 +44,12 @@ def create_val_folder(data_dir):
             os.rename(os.path.join(path, img), os.path.join(newpath, img))
 
 
-class TinyImagenet():
-    def __init__(self, data_dir, batch_size=128, augment=True):
+class tinyImagenet():
+    def __init__(self, data_dir, batch_size=128, num_workers=4):
         self.name = "tinyimagenet"
         print('Loading the original TinyImageNet...')
         self.batch_size = batch_size
+        self.num_workers = num_workers
         self.img_size = 64
         self.num_classes = 200 #K  
         num_train = 100000
