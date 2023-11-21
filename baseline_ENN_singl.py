@@ -10,19 +10,33 @@ from torch import optim
 
 from config_args import parser
 from common_tools import create_path, set_device, set_random_seeds
-from data.tinyImageNet import tinyImageNet
+from data.tinyImageNet import tinyImageNetOrig
 from backbones import HENN_EfficientNet
 from backbones import HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_ResNet18
 from helper_functions import one_hot_embedding
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
-from baseline_DetNN import evaluate_vague_nonvague_final
 
-def train_valid_log(phase, epoch, accGT, loss):
+
+def train_valid_log(phase, epoch, accGT, loss, loss_1, loss_2):
     wandb.log({
         f"{phase}_epoch": epoch, 
         f"{phase}_loss": loss, 
+        f"{phase}_loss_1": loss_1, 
+        f"{phase}_loss_2": loss_2, 
         f"{phase}_accGT": accGT}, step=epoch)
-    print(f"{phase.capitalize()} loss: {loss:.4f} accGT: {accGT:.4f}")
+    print(f"{phase.capitalize()} loss: {loss:.4f}, loss1: {loss_1:.4f} , loss2: {loss_2:.4f},  accGT: {accGT:.4f}")
+
+
+def test_result_log(
+    nonvague_acc, 
+    bestModel=False):
+    if bestModel:
+        tag = "TestB"
+    else:
+        tag = "TestF"
+    wandb.log({
+        f"{tag} accNonVague": nonvague_acc})
+    print(f"{tag} accNonVague: {nonvague_acc:.4f},\n")
 
 
 def validate(model, dataloader, criterion, K, epoch, entropy_lam, device):
@@ -71,6 +85,29 @@ def validate(model, dataloader, criterion, K, epoch, entropy_lam, device):
     return epoch_acc, epoch_loss, epoch_loss_1, epoch_loss_2
 
 
+
+def validate_test(model, dataloader, device, bestModel=False):
+    print("Validating Test set...")
+    model.eval()  # Set model to evaluate mode
+    running_corrects = 0.0
+    dataset_size_val = len(dataloader.dataset)
+    for batch_idx, (inputs, single_labels_GT) in enumerate(dataloader):
+        inputs = inputs.to(device, non_blocking=True)
+        labels = single_labels_GT.to(device, non_blocking=True)
+        # forward
+        with torch.no_grad():
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
+
+        # statistics
+        running_corrects += torch.sum(preds == labels)
+
+    epoch_acc = running_corrects / dataset_size_val
+    epoch_acc = epoch_acc.detach()
+    
+    test_result_log(epoch_acc, bestModel=bestModel)
+
+
 def train_ENN(
     model,
     mydata,
@@ -103,8 +140,6 @@ def train_ENN(
         running_loss_1, running_loss_2 = 0.0, 0.0
         
         running_corrects = 0.0
-        running_loss_GT = 0.0
-        running_corrects_GT = 0.0
 
         # Iterate over data.
         for batch_idx, (inputs, labels) in enumerate(dataloader):
@@ -157,7 +192,7 @@ def train_ENN(
         valid_acc, valid_loss, valid_run_loss_1, valid_run_loss_2 = validate(
             model, mydata.valid_loader, criterion,
             K, epoch, entropy_lam, device)
-        train_valid_log("valid", epoch, valid_acc, 0, valid_loss, valid_run_loss_1, valid_run_loss_2)
+        train_valid_log("valid", epoch, valid_acc, valid_loss, valid_run_loss_1, valid_run_loss_2)
         
         if valid_acc > best_acc:
             best_acc = valid_acc
@@ -194,7 +229,7 @@ def make(args):
     device = args.device
     
     if args.dataset == "tinyimagenet":
-        mydata = tinyImageNet(
+        mydata = tinyImageNetOrig(
             args.data_dir,
             batch_size=args.batch_size,
             num_workers=args.num_workers
@@ -305,14 +340,10 @@ def main(project_name, args_all):
 
             # model after the final epoch
             print(f"\n### Evaluate the model after all epochs:")
-            evaluate_vague_nonvague_final(
-                    model, test_loader, valid_loader, R, num_singles, device, 
-                    detNN=False, bestModel=False)
+            validate_test(model, test_loader, device, bestModel=False)
 
             print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
-            evaluate_vague_nonvague_final(
-                    model_best_from_valid, test_loader, valid_loader, R, num_singles, device,
-                    detNN=False, bestModel=True)
+            validate_test(model_best_from_valid, test_loader, device, bestModel=True)
 
 
 if __name__ == "__main__":

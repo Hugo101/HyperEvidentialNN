@@ -12,7 +12,7 @@ from collections import Counter
 
 from config_args import parser
 from common_tools import create_path, set_device, dictToObj, set_random_seeds
-from data.tinyImageNet import tinyImageNet
+from data.tinyImageNet import tinyImageNetOrig
 from backbones import EfficientNet_pretrain, ResNet50, ResNet18, VGG16, LeNet
 
 
@@ -162,7 +162,7 @@ def make(args):
     device = args.device
     
     if args.dataset == "tinyimagenet":
-        mydata = tinyImageNet(
+        mydata = tinyImageNetOrig(
             args.data_dir, 
             batch_size=args.batch_size,
             num_workers=args.num_workers
