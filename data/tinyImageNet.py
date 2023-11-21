@@ -47,7 +47,7 @@ def create_val_folder(data_dir):
 class TinyImagenet():
     def __init__(self, data_dir, batch_size=128, augment=True):
         self.name = "tinyimagenet"
-        print('Loading TinyImageNet...')
+        print('Loading the original TinyImageNet...')
         self.batch_size = batch_size
         self.img_size = 64
         self.num_classes = 200 #K  
@@ -56,39 +56,36 @@ class TinyImagenet():
         ratio_train = 0.9
         self.num_train = int(num_train * ratio_train)
         self.num_val = num_train - self.num_train
+        self.R = [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [23], [24], [25], [26], [27], [28], [29], [30], [31], [32], [33], [34], [35], [36], [37], [38], [39], [40], [41], [42], [43], [44], [45], [46], [47], [48], [49], [50], [51], [52], [53], [54], [55], [56], [57], [58], [59], [60], [61], [62], [63], [64], [65], [66], [67], [68], [69], [70], [71], [72], [73], [74], [75], [76], [77], [78], [79], [80], [81], [82], [83], [84], [85], [86], [87], [88], [89], [90], [91], [92], [93], [94], [95], [96], [97], [98], [99], [100], [101], [102], [103], [104], [105], [106], [107], [108], [109], [110], [111], [112], [113], [114], [115], [116], [117], [118], [119], [120], [121], [122], [123], [124], [125], [126], [127], [128], [129], [130], [131], [132], [133], [134], [135], [136], [137], [138], [139], [140], [141], [142], [143], [144], [145], [146], [147], [148], [149], [150], [151], [152], [153], [154], [155], [156], [157], [158], [159], [160], [161], [162], [163], [164], [165], [166], [167], [168], [169], [170], [171], [172], [173], [174], [175], [176], [177], [178], [179], [180], [181], [182], [183], [184], [185], [186], [187], [188], [189], [190], [191], [192], [193], [194], [195], [196], [197], [198], [199], [73, 135], [145, 166], [74, 158], [15, 16, 17], [185, 183], [179, 180], [48, 50], [108, 115], [30, 31, 32], [59, 75]]
+        self.num_classes = 200 #K  
+        self.num_comp = 10
+        self.kappa = self.num_classes + self.num_comp
         
         train_dir = os.path.join(data_dir, 'tiny-imagenet-200/train')
         valid_dir = os.path.join(data_dir, 'tiny-imagenet-200/val/images')
 
-        normalize = transforms.Normalize(mean=[0.4802, 0.4481, 0.3975], 
-                                         std =[0.2302, 0.2265, 0.2262])
-        self.normalized = transforms.Compose([transforms.ToTensor(), 
-                                              normalize])
-        self.trainset = datasets.ImageFolder(train_dir, transform=self.normalized)
+        norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        pre_norm_train = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(), 
+            norm])
+        pre_norm_test = transforms.Compose([
+            transforms.Resize(256),     # Resize images to 256 x 256
+            transforms.CenterCrop(224), # Center crop image
+            transforms.ToTensor(),
+            norm])
+        
+        self.trainset = datasets.ImageFolder(train_dir, transform=pre_norm_train)
         
         train_ds, val_ds = random_split(self.trainset, [self.num_train, self.num_val],
                                         generator=torch.Generator().manual_seed(42))
         self.train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=8)
-        self.valid_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False,
-                                                        num_workers=8)
+        self.valid_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=8)
         
         # Test
-        self.testset = datasets.ImageFolder(valid_dir, transform=self.normalized)
-        self.test_loader = DataLoader(self.testset, batch_size=batch_size, shuffle=False,
-                                                       num_workers=8)
-
-        if augment: # if augment, change training dataloader 
-            self.augmented = transforms.Compose([transforms.RandomHorizontalFlip(), 
-                                                transforms.RandomCrop(64, padding=8),
-                                                transforms.ColorJitter(0.2, 0.2, 0.2),
-                                                transforms.ToTensor(), 
-                                                normalize])    
-            self.aug_trainset = datasets.ImageFolder(train_dir, transform=self.augmented)
-            aug_train_ds, _ = random_split(self.aug_trainset,
-                                           [self.num_train, self.num_val],
-                                           generator=torch.Generator().manual_seed(42))
-            self.train_loader = DataLoader(aug_train_ds, batch_size=batch_size, shuffle=True,
-                                                                num_workers=8)
+        self.testset = datasets.ImageFolder(valid_dir, transform=pre_norm_test)
+        self.test_loader = DataLoader(self.testset, batch_size=batch_size, shuffle=False, num_workers=8)
 
 
 def have_dummy(row):
