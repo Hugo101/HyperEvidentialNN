@@ -14,6 +14,7 @@ from common_tools import create_path, set_device, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
+from data.nabirds import NabirdsVague
 from data.tinyImageNet import tinyImageNetOrig
 from data.mnist import MNIST
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_LeNet_v2
@@ -77,9 +78,19 @@ def make(args):
             num_workers=args.num_workers,
             add_label=True,
             )
-    if args.dataset == "mnist":
+    elif args.dataset == "mnist":
         mydata = MNIST(
             args.data_dir,
+            batch_size=args.batch_size,
+            blur=args.blur,
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            )
+    elif args.dataset == "nabirds":
+        mydata = NabirdsVague(
+            args.data_dir, 
             batch_size=args.batch_size,
             blur=args.blur,
             gauss_kernel_size=args.gauss_kernel_size,
