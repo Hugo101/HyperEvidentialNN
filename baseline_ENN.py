@@ -13,6 +13,7 @@ from common_tools import create_path, set_device, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
+from data.nabirds import NabirdsVague
 from data.mnist import MNIST
 from data.cifar10h import CIFAR10h
 from data.cifar10 import CIFAR10
@@ -292,7 +293,18 @@ def make(args):
             num_workers=args.num_workers,
             seed=args.seed,
         )
-
+    elif args.dataset == "nabirds":
+        mydata = NabirdsVague(
+            args.data_dir, 
+            batch_size=args.batch_size,
+            blur=args.blur,
+            duplicate=True,  #key duplicate
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            )
+        
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
