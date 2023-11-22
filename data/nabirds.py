@@ -335,7 +335,7 @@ class NabirdsVague():
             self.vague_classes_ids,
             blur=self.blur,
             gauss_kernel_size=self.gauss_kernel_size,
-            data_train=False)
+            data_train=True)
         
         if self.pretrain:
             norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
