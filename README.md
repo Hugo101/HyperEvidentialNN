@@ -33,3 +33,8 @@ This file contains the evaluation metric calculation during test phase of the HE
  
  
 ## **Helper functions**
+- helper_functions.py contains the necessary data preparation functions and necessary functions for HENN training.
+
+## **Results Representation
+- All results are saved in cloud using wandb.
+- roc_draw_plot.ipynb For figures we generated, such as AUROC curves.
