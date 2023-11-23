@@ -12,7 +12,7 @@ The folder "data" contains all data preparation files for different datasets, in
 
 Each data file contains different processing methods for different methods: HENN, DNN, and ENN, etc.
 
-## **GDD**
+## **HENN**
 
 - **GDD_main.py**
 This is the main file to run our HENN code.
@@ -35,6 +35,6 @@ This file contains the evaluation metric calculation during test phase of the HE
 ## **Helper functions**
 - helper_functions.py contains the necessary data preparation functions and necessary functions for HENN training.
 
-## **Results Representation
+## **Results Representation**
 - All results are saved in cloud using wandb.
 - roc_draw_plot.ipynb For figures we generated, such as AUROC curves.
