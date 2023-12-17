@@ -456,6 +456,16 @@ def make(args):
             num_workers=args.num_workers,
             seed=args.seed,
         )
+    elif args.dataset == "CIFAR10_overlap":
+        mydata = CIFAR10(
+            args.data_dir,
+            batch_size=args.batch_size,
+            duplicate=True,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            overlap=True,
+        )
     elif args.dataset == "tinyGroup2":
         mydata = tinyGroup2(
             args.data_dir,

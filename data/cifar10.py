@@ -115,11 +115,10 @@ class CIFAR10:
         pretrain=True,
         num_workers=4,
         seed=42,
+        overlap=False,
     ):
         print("****** Loading CIFAR10 (relabeled) ... ******")
         start_time = time.time()
-        self.data_dir_train = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_train_composites')
-        self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites')
         self.batch_size = batch_size
         self.duplicate = duplicate
         self.ratio_train = ratio_train
@@ -127,24 +126,39 @@ class CIFAR10:
         self.num_workers = num_workers
         self.seed = seed
         self.num_classes = 10 # fixed
-        self.num_comp = 4 # fixed
-        self.kappa = self.num_classes + self.num_comp
         
+        if not overlap:
+            self.data_dir_train = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_train_composites')
+            self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites')
+            ALL_LABEL_NAMES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck', 
+                               'Cat_Dog', 'Deer_Horse', 'Automobile_Truck', 'Airplane_Bird']
+            self.vague_classes_ids = [[3,5], [4,7], [1,9], [0,2]]
+            # Cat_Dog: [3, 5]
+            # Deer_Horse: [4, 7]
+            # Automobile_Truck: [1, 9]
+            # Airplane_Bird: [0, 2]
+
+        else:
+            self.data_dir_train = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_train_composites_overlap')
+            self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites_overlap')
+            ALL_LABEL_NAMES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck', 
+                               'Cat_Dog', 'Deer_Horse', 'Automobile_Truck', 'Airplane_Bird',
+                               'Deer_Dog', 'Deer_Dog_Horse', 'Cat_Deer_Dog', 'Bird_Frog']
+            self.vague_classes_ids = [[3,5], [4,7], [1,9], [0,2],
+                                      [4,5], [4,5,7], [3,4,5], [2,6]]
+        
+        self.num_comp = len(self.vague_classes_ids)
+        self.kappa = self.num_classes + self.num_comp
+
         self.img_name_label_dict_Train = extract_file_name_and_labels_Train()
         self.img_name_label_dict = extract_file_name_and_labels()
-        
-        ALL_LABEL_NAMES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck', 'Cat_Dog', 'Deer_Horse', 'Automobile_Truck', 'Airplane_Bird']
         
         # Load the ImageFolder dataset
         self.ds_original = datasets.ImageFolder(root=self.data_dir_train)
         self.class_to_idx = self.ds_original.class_to_idx
         
         self.idx_to_class = {value:key for key, value in self.class_to_idx.items()}
-        self.vague_classes_ids = [[3,5], [4,7], [1,9], [0,2]]
-        # Cat_Dog: [3, 5]
-        # Deer_Horse: [4, 7]
-        # Automobile_Truck: [1, 9]
-        # Airplane_Bird: [0, 2]
+        
         self.R = [[el] for el in range(self.num_classes)]
         for el in self.vague_classes_ids:
             self.R.append(el)
