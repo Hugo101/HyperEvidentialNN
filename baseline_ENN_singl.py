@@ -10,34 +10,33 @@ from torch import optim
 
 from config_args import parser
 from common_tools import create_path, set_device, set_random_seeds
-from data.tinyImageNet import tinyImageNetVague
-from data.cifar100 import CIFAR100Vague
-from data.breeds import BREEDSVague
-from data.nabirds import NabirdsVague
-from data.mnist import MNIST
-from data.cifar10h import CIFAR10h
-from data.cifar10 import CIFAR10
-from data.tinyGroup2 import tinyGroup2
-from data.tinyGroup2 import tinyGroup2
+from data.tinyImageNet import tinyImageNetOrig
 from backbones import HENN_EfficientNet
 from backbones import HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_ResNet18
 from helper_functions import one_hot_embedding
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
-from baseline_DetNN import evaluate_vague_nonvague_final
 
 
-def train_valid_log(phase, epoch, accDup, accGT, loss, epoch_loss_1, epoch_loss_2):
+def train_valid_log(phase, epoch, accGT, loss, loss_1, loss_2):
     wandb.log({
-        f"{phase} epoch": epoch, 
-        f"{phase} loss": loss,
-        f"{phase}_loss_1": epoch_loss_1, 
-        f"{phase}_loss_2_entropy": epoch_loss_2, 
-        f"{phase} accDup": accDup, 
-        f"{phase} accGT": accGT}, step=epoch)
-    print(f"{phase.capitalize()} loss: {loss:.4f} \
-            (loss_1: {epoch_loss_1:.4f}, \
-                loss_2_entropy:{epoch_loss_2:.4f}) \
-                    accDup: {accDup:.4f} accGT: {accGT:.4f}")
+        f"{phase}_epoch": epoch, 
+        f"{phase}_loss": loss, 
+        f"{phase}_loss_1": loss_1, 
+        f"{phase}_loss_2": loss_2, 
+        f"{phase}_accGT": accGT}, step=epoch)
+    print(f"{phase.capitalize()} loss: {loss:.4f}, loss1: {loss_1:.4f} , loss2: {loss_2:.4f},  accGT: {accGT:.4f}")
+
+
+def test_result_log(
+    nonvague_acc, 
+    bestModel=False):
+    if bestModel:
+        tag = "TestB"
+    else:
+        tag = "TestF"
+    wandb.log({
+        f"{tag} accNonVague": nonvague_acc})
+    print(f"{tag} accNonVague: {nonvague_acc:.4f},\n")
 
 
 def validate(model, dataloader, criterion, K, epoch, entropy_lam, device):
@@ -47,9 +46,9 @@ def validate(model, dataloader, criterion, K, epoch, entropy_lam, device):
     running_loss_1, running_loss_2 = 0.0, 0.0
     running_corrects = 0.0
     dataset_size_val = len(dataloader.dataset)
-    for batch_idx, (inputs, single_labels_GT, single_label_dup) in enumerate(dataloader):
+    for batch_idx, (inputs, single_labels_GT) in enumerate(dataloader):
         inputs = inputs.to(device, non_blocking=True)
-        labels = single_label_dup.to(device, non_blocking=True)
+        labels = single_labels_GT.to(device, non_blocking=True)
         # forward
         with torch.no_grad():
             outputs = model(inputs)
@@ -86,6 +85,29 @@ def validate(model, dataloader, criterion, K, epoch, entropy_lam, device):
     return epoch_acc, epoch_loss, epoch_loss_1, epoch_loss_2
 
 
+
+def validate_test(model, dataloader, device, bestModel=False):
+    print("Validating Test set...")
+    model.eval()  # Set model to evaluate mode
+    running_corrects = 0.0
+    dataset_size_val = len(dataloader.dataset)
+    for batch_idx, (inputs, single_labels_GT) in enumerate(dataloader):
+        inputs = inputs.to(device, non_blocking=True)
+        labels = single_labels_GT.to(device, non_blocking=True)
+        # forward
+        with torch.no_grad():
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
+
+        # statistics
+        running_corrects += torch.sum(preds == labels)
+
+    epoch_acc = running_corrects / dataset_size_val
+    epoch_acc = epoch_acc.detach()
+    
+    test_result_log(epoch_acc, bestModel=bestModel)
+
+
 def train_ENN(
     model,
     mydata,
@@ -118,14 +140,11 @@ def train_ENN(
         running_loss_1, running_loss_2 = 0.0, 0.0
         
         running_corrects = 0.0
-        running_loss_GT = 0.0
-        running_corrects_GT = 0.0
 
         # Iterate over data.
-        for batch_idx, (inputs, single_labels_GT, labels) in enumerate(dataloader):
+        for batch_idx, (inputs, labels) in enumerate(dataloader):
             inputs = inputs.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True)
-            single_labels_GT = single_labels_GT.to(device, non_blocking=True)
             # zero the parameter gradients
             optimizer.zero_grad()
             # forward
@@ -150,7 +169,6 @@ def train_ENN(
             batch_size = inputs.size(0)
             running_loss += loss.detach() * batch_size
             running_corrects += torch.sum(preds == labels)
-            running_corrects_GT += torch.sum(preds == single_labels_GT)
         
             running_loss_1 += loss_first * batch_size
             running_loss_2 += loss_second * batch_size
@@ -161,13 +179,11 @@ def train_ENN(
         epoch_loss = running_loss / dataset_size_train
         epoch_acc = running_corrects / dataset_size_train
         epoch_acc = epoch_acc.detach()
-        epoch_acc_GT = running_corrects_GT / dataset_size_train
-        epoch_acc_GT = epoch_acc_GT.detach()
 
         epoch_loss_1 = running_loss_1 / dataset_size_train
         epoch_loss_2 = running_loss_2 / dataset_size_train
         
-        train_valid_log("train", epoch, epoch_acc, epoch_acc_GT, epoch_loss, epoch_loss_1, epoch_loss_2)
+        train_valid_log("train", epoch, epoch_acc, epoch_loss, epoch_loss_1, epoch_loss_2)
         time_epoch_train = time.time() - begin_epoch
         print(
         f"Finish the Train in this epoch in {time_epoch_train//60:.0f}m {time_epoch_train%60:.0f}s.")
@@ -176,7 +192,7 @@ def train_ENN(
         valid_acc, valid_loss, valid_run_loss_1, valid_run_loss_2 = validate(
             model, mydata.valid_loader, criterion,
             K, epoch, entropy_lam, device)
-        train_valid_log("valid", epoch, valid_acc, 0, valid_loss, valid_run_loss_1, valid_run_loss_2)
+        train_valid_log("valid", epoch, valid_acc, valid_loss, valid_run_loss_1, valid_run_loss_2)
         
         if valid_acc > best_acc:
             best_acc = valid_acc
@@ -213,110 +229,12 @@ def make(args):
     device = args.device
     
     if args.dataset == "tinyimagenet":
-        mydata = tinyImageNetVague(
-            args.data_dir, 
-            num_comp=args.num_comp, 
+        mydata = tinyImageNetOrig(
+            args.data_dir,
             batch_size=args.batch_size,
-            imagenet_hierarchy_path=args.data_dir,
-            duplicate=True,  #key duplicate
-            blur=args.blur,
-            gray=args.gray,
-            gauss_kernel_size=args.gauss_kernel_size,
-            pretrain=args.pretrain,
-            num_workers=args.num_workers,
-            seed=args.seed)
+            num_workers=args.num_workers
+            )
 
-    elif args.dataset == "cifar100":
-        mydata = CIFAR100Vague(
-            args.data_dir, 
-            num_comp=args.num_comp,
-            batch_size=args.batch_size,
-            duplicate=True,  #key duplicate
-            blur=args.blur,
-            gauss_kernel_size=args.gauss_kernel_size,
-            pretrain=args.pretrain,
-            num_workers=args.num_workers,
-            seed=args.seed,
-            comp_el_size=args.num_subclasses,
-            )
-    
-    elif args.dataset in ["living17", "nonliving26", "entity13", "entity30"]:
-        data_path_base = os.path.join(args.data_dir, "ILSVRC/ILSVRC")
-        mydata = BREEDSVague(
-            os.path.join(data_path_base, "BREEDS/"),
-            os.path.join(data_path_base, 'Data', 'CLS-LOC/'),
-            ds_name=args.dataset,
-            num_comp=args.num_comp, 
-            batch_size=args.batch_size,
-            duplicate=True,  #key duplicate
-            blur=args.blur,
-            gauss_kernel_size=args.gauss_kernel_size,
-            pretrain=args.pretrain,
-            num_workers=args.num_workers,
-            seed=args.seed,
-            comp_el_size=args.num_subclasses,
-            )
-    
-    elif args.dataset == "mnist":
-        mydata = MNIST(
-            args.data_dir, 
-            batch_size=args.batch_size,
-            blur=args.blur,
-            gauss_kernel_size=args.gauss_kernel_size,
-            pretrain=args.pretrain,
-            num_workers=args.num_workers,
-            seed=args.seed,
-            )
-    elif args.dataset == "CIFAR10h":
-        mydata = CIFAR10h(
-            args.data_dir,
-            batch_size=args.batch_size,
-            duplicate=True,
-            pretrain=args.pretrain,
-            num_workers=args.num_workers,
-            seed=args.seed,
-        )
-    elif args.dataset == "CIFAR10":
-        mydata = CIFAR10(
-            args.data_dir,
-            batch_size=args.batch_size,
-            duplicate=True,
-            pretrain=args.pretrain,
-            num_workers=args.num_workers,
-            seed=args.seed,
-        )
-    elif args.dataset == "CIFAR10_overlap":
-        mydata = CIFAR10(
-            args.data_dir,
-            batch_size=args.batch_size,
-            duplicate=True,
-            pretrain=args.pretrain,
-            num_workers=args.num_workers,
-            seed=args.seed,
-            overlap=True,
-        )
-    elif args.dataset == "tinyGroup2":
-        mydata = tinyGroup2(
-            args.data_dir,
-            batch_size=args.batch_size,
-            duplicate=True,
-            pretrain=args.pretrain,
-            num_workers=args.num_workers,
-            seed=args.seed,
-        )
-
-    elif args.dataset == "nabirds":
-        mydata = NabirdsVague(
-            args.data_dir, 
-            batch_size=args.batch_size,
-            blur=args.blur,
-            duplicate=True,  #key duplicate
-            gauss_kernel_size=args.gauss_kernel_size,
-            pretrain=args.pretrain,
-            num_workers=args.num_workers,
-            seed=args.seed,
-            )
-        
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
@@ -336,14 +254,6 @@ def make(args):
         print(f"### ERROR: The backbone {args.backbone} is invalid!")
 
     model = model.to(device)
-
-    # if args.digamma:
-    #     print("### Loss type: edl_digamma_loss")
-    #     criterion = edl_digamma_loss
-    # elif args.log:
-    #     print("### Loss type: edl_log_loss")
-    #     criterion = edl_log_loss
-    # elif args.mse:
     print("### Loss type: edl_digamma_loss")
     criterion = edl_digamma_loss
 
@@ -356,11 +266,10 @@ def generateSpecPath(args):
     output_folder=args.output_folder
     saved_spec_dir=args.saved_spec_dir 
     num_comp=args.num_comp
-    gauss_kernel_size=args.gauss_kernel_size
     init_lr=args.init_lr
     seed=args.seed
     base_path = os.path.join(output_folder, saved_spec_dir)
-    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}",f"Seed{seed}",f"BB{args.backbone}", "sweep_ENN"])
+    tag0 = "_".join([f"{num_comp}M",f"Seed{seed}",f"BB{args.backbone}", "sweep_ENN"])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
     tag = "_".join([f"lr{init_lr}", f"EntrLam{args.entropy_lam}"])
@@ -431,14 +340,10 @@ def main(project_name, args_all):
 
             # model after the final epoch
             print(f"\n### Evaluate the model after all epochs:")
-            evaluate_vague_nonvague_final(
-                    model, test_loader, valid_loader, R, num_singles, device, 
-                    detNN=False, bestModel=False)
+            validate_test(model, test_loader, device, bestModel=False)
 
             print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
-            evaluate_vague_nonvague_final(
-                    model_best_from_valid, test_loader, valid_loader, R, num_singles, device,
-                    detNN=False, bestModel=True)
+            validate_test(model_best_from_valid, test_loader, device, bestModel=True)
 
 
 if __name__ == "__main__":

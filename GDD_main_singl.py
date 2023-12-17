@@ -14,7 +14,6 @@ from common_tools import create_path, set_device, set_random_seeds
 from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
-from data.nabirds import NabirdsVague
 from data.tinyImageNet import tinyImageNetOrig
 from data.mnist import MNIST
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_LeNet_v2
@@ -23,6 +22,42 @@ from GDD_train import train_model
 from GDD_test import evaluate_vague_nonvague
 from loss import edl_mse_loss, edl_digamma_loss, edl_log_loss
 from loss import henn_gdd, unified_UCE_loss
+
+
+def test_result_log(
+    nonvague_acc, 
+    bestModel=False):
+    if bestModel:
+        tag = "TestB"
+    else:
+        tag = "TestF"
+    wandb.log({
+        f"{tag} accNonVague": nonvague_acc})
+    print(f"{tag} accNonVague: {nonvague_acc:.4f},\n")
+
+
+def validate_test(model, dataloader, device, bestModel=False):
+    outputs_all = []
+    labels_all = []  # singleton ground truth
+    preds_all = []
+    correct = 0
+    accs_batch = []
+    print("Validating Test set...")
+    model.eval()  # Set model to evaluate mode
+    for batch in dataloader:
+        images, single_labels_GT, labels = batch
+        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+        output = model(images)
+        preds = output.argmax(dim=1)
+        correct_batch = torch.sum(preds == labels)
+        accs_batch.append(correct_batch.item() / len(labels))
+        correct += correct_batch
+        outputs_all.append(output)
+        labels_all.append(labels)
+        preds_all.append(preds)
+
+    acc = correct / len(labels_all)
+    test_result_log(acc, bestModel=bestModel)
 
 
 def make(args):
@@ -78,19 +113,9 @@ def make(args):
             num_workers=args.num_workers,
             add_label=True,
             )
-    elif args.dataset == "mnist":
+    if args.dataset == "mnist":
         mydata = MNIST(
             args.data_dir,
-            batch_size=args.batch_size,
-            blur=args.blur,
-            gauss_kernel_size=args.gauss_kernel_size,
-            pretrain=args.pretrain,
-            num_workers=args.num_workers,
-            seed=args.seed,
-            )
-    elif args.dataset == "nabirds":
-        mydata = NabirdsVague(
-            args.data_dir, 
             batch_size=args.batch_size,
             blur=args.blur,
             gauss_kernel_size=args.gauss_kernel_size,
@@ -211,36 +236,13 @@ def main(args):
         #! Test set
         # #Evaluation, Inference
         print(f"\n### Evaluate the model after all epochs:")
-        evaluate_vague_nonvague(
-            model, mydata.test_loader, mydata.R, 
-            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, train_flag=3)
-
+        validate_test(model, mydata.test_loader, device, bestModel=False)
+        
         print(f"\n### Use the model selected from ValidSet in Ep. {checkpoint['epoch_best']}:")
-        evaluate_vague_nonvague(
-            model_best_from_valid, mydata.test_loader, mydata.R, 
-            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, bestModel=True, train_flag=3)
-
+        validate_test(model_best_from_valid, mydata.test_loader, device, bestModel=True)
+        
         print(f"\n### Use the model selected from ValidSet (GT) in Ep. {checkpoint['epoch_best_GT']}:")
-        evaluate_vague_nonvague(
-            model_best_from_valid_GT, mydata.test_loader, mydata.R, 
-            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, bestModelGT=True, train_flag=3)
-
-        # #! Training set for debugging
-        # #Evaluation, Inference
-        print(f"\n### (TrainingSet) Evaluate the model after all epochs:")
-        evaluate_vague_nonvague(
-            model, mydata.train_loader, mydata.R, 
-            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, train_flag=1)
-
-        print(f"\n### (TrainingSet) Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
-        evaluate_vague_nonvague(
-            model_best_from_valid, mydata.train_loader, mydata.R, 
-            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, bestModel=True, train_flag=1)
+        validate_test(model_best_from_valid_GT, mydata.test_loader, device, bestModel=True)
 
 
 if __name__ == "__main__":

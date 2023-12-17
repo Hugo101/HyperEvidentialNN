@@ -34,12 +34,11 @@ def extract_file_name_and_labels():
     ds_original = datasets.ImageFolder(root=data_dir)
     class_2_idx = ds_original.class_to_idx
     
-    file_name_label_dict = {}
     target_path = "selected_subclasses_group_2"
 
     file_name_and_gt_label_ALL = {}
     # tranverse all the folders
-    for file_name in os.listdir(target_path):
+    for file_name in os.listdir(data_path+target_path):
         label_nid = file_name.split("_")[0]
         label_id = class_2_idx[label_nid]
         file_name_and_gt_label_ALL[file_name] = label_id
@@ -186,27 +185,3 @@ class tinyGroup2:
                 copies += CustomDataset(comp_label_subset, comp_class_id=C[comp_label - self.num_classes][j])
             subset_1 = subset_1 + copies
         return subset_1
-
-
-if __name__ == "__main__":
-    # todo: the following script does not work because of the path of libraries
-    data_dir = '/home/cxl173430/data/DATASETS/'
-    batch_size = 64
-    dataset = CIFAR10h(
-            data_dir,
-            batch_size=batch_size,
-            duplicate=False)
-    print(f"class_to_idx: {dataset.class_to_idx}")
-    print(f"idx_to_class: {dataset.idx_to_class}")
-    print(f"vague_subclasses: {dataset.vague_classes_ids}")
-    print(f"Count for each class (Train): {dataset.R}")
-    print(f"Count for each class (Test): {dataset.R}")
-
-    dataset_dup = CIFAR10h(
-            data_dir,
-            batch_size=batch_size,
-            duplicate=True)
-    print(f"class_to_idx: {dataset_dup.class_to_idx}")
-    print(f"idx_to_class: {dataset_dup.idx_to_class}")
-    print(f"vague_classes_ids: {dataset_dup.vague_classes_ids}")
-    
