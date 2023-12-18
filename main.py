@@ -16,6 +16,7 @@ from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
 from data.mnist import MNIST
 from data.cifar10h import CIFAR10h
+from data.cifar10 import CIFAR10
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_ResNet18
 # from backbones import EfficientNet_pretrain, ResNet50
 from train import train_model
@@ -84,7 +85,23 @@ def make(args):
             num_workers=args.num_workers,
             seed=args.seed,
         )
-        
+    elif args.dataset == "CIFAR10":
+        mydata = CIFAR10(
+            args.data_dir,
+            batch_size=args.batch_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+        )
+    elif args.dataset == "CIFAR10_overlap":
+        mydata = CIFAR10(
+            args.data_dir,
+            batch_size=args.batch_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            overlap=True,
+        )
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
