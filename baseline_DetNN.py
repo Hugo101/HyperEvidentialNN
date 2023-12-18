@@ -456,7 +456,36 @@ def make(args):
             num_workers=args.num_workers,
             seed=args.seed,
         )
-    
+    elif args.dataset == "CIFAR10_overlap":
+        mydata = CIFAR10(
+            args.data_dir,
+            batch_size=args.batch_size,
+            duplicate=True,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            overlap=True,
+        )
+    elif args.dataset == "tinyGroup2":
+        mydata = tinyGroup2(
+            args.data_dir,
+            batch_size=args.batch_size,
+            duplicate=True,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+        )
+    elif args.dataset == "nabirds":
+        mydata = NabirdsVague(
+            args.data_dir, 
+            batch_size=args.batch_size,
+            blur=args.blur,
+            duplicate=True,  #key duplicate
+            gauss_kernel_size=args.gauss_kernel_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            )
     num_singles = mydata.num_classes
     num_comps = mydata.num_comp
     print(f"Data: {args.dataset}, num of singleton and composite classes: {num_singles, num_comps}")
