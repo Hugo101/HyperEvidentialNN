@@ -121,13 +121,14 @@ def evaluate_vague_nonvague(
     test_vague_result_log(js_result, prec_recall_f, acc, js_comp, js_singl, epoch, bestModel)
 
     ##### nonVagueAcc for all examples
-    alpha = torch.add(outputs_all[:,:num_singles], 1)
-    # Get the predicted prob and labels
-    p_exp1 = meanGDD(vague_classes_ids, alpha, outputs_all, num_singles, num_comp, device)
-    predicted_labels1 = torch.argmax(p_exp1, dim=1) # 
-    corr_num1 = torch.sum(true_labels == predicted_labels1)
-    nonvague_acc_meanGDD = corr_num1 / len(true_labels)
-
+    # ##method 1: meanGDD #todo: comment for now (for overlap case)
+    # alpha = torch.add(outputs_all[:,:num_singles], 1)
+    # # Get the predicted prob and labels
+    # p_exp1 = meanGDD(vague_classes_ids, alpha, outputs_all, num_singles, num_comp, device)
+    # predicted_labels1 = torch.argmax(p_exp1, dim=1) # 
+    # corr_num1 = torch.sum(true_labels == predicted_labels1)
+    # nonvague_acc_meanGDD = corr_num1 / len(true_labels)
+    ##method 2: projection_prob
     p_exp = projection_prob(num_singles, num_comp, R, outputs_all, device)
     predicted_labels = torch.argmax(p_exp, dim=1) # 
     pred_corr_or_not = true_labels.data == predicted_labels.data
@@ -138,7 +139,8 @@ def evaluate_vague_nonvague(
     pred_corr_or_not_singl = pred_corr_or_not[singl_idx]
     corr_num_singl = torch.sum(pred_corr_or_not_singl)
     nonvague_acc_singl = corr_num_singl / len(pred_corr_or_not_singl)
-    test_nonvague_result_log(nonvague_acc_meanGDD, nonvague_acc, nonvague_acc_singl, epoch, bestModel)
+    test_nonvague_result_log(0, nonvague_acc, nonvague_acc_singl, epoch, bestModel)
+    # test_nonvague_result_log(nonvague_acc_meanGDD, nonvague_acc, nonvague_acc_singl, epoch, bestModel) #todo: comment for now (for overlap case)
 
     return acc 
 
