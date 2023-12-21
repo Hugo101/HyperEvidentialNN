@@ -144,7 +144,7 @@ def evaluate_model(
         epoch, device, train_flag=2)
 
     evaluate_vague_nonvague(
-        model, mydata.test_loader, mydata.R, 
+        model, mydata.test_loader, mydata.R_test, 
         mydata.num_classes, mydata.num_comp, 
         mydata.vague_classes_ids, 
         epoch, device, train_flag=3)

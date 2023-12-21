@@ -116,6 +116,7 @@ class CIFAR10:
         num_workers=4,
         seed=42,
         overlap=False,
+        overlap_test_only=False
     ):
         print("****** Loading CIFAR10 (relabeled) ... ******")
         start_time = time.time()
@@ -127,7 +128,7 @@ class CIFAR10:
         self.seed = seed
         self.num_classes = 10 # fixed
         
-        if not overlap:
+        if not overlap and not overlap_test_only:
             self.data_dir_train = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_train_composites')
             self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites_v2')
             # self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites')
@@ -138,8 +139,13 @@ class CIFAR10:
             # Deer_Horse: [4, 7]
             # Automobile_Truck: [1, 9]
             # Airplane_Bird: [0, 2]
+            self.R = [[el] for el in range(self.num_classes)]
+            for el in self.vague_classes_ids:
+                self.R.append(el)
+            print(f"Actual label sets\n R: {self.R}")
+            self.R_test = self.R
 
-        else:
+        elif overlap and not overlap_test_only:
             self.data_dir_train = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_train_composites_overlap')
             self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites_overlap')
             ALL_LABEL_NAMES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck', 
@@ -147,7 +153,26 @@ class CIFAR10:
                                'Deer_Dog', 'Deer_Dog_Horse', 'Cat_Deer_Dog', 'Bird_Frog']
             self.vague_classes_ids = [[3,5], [4,7], [1,9], [0,2],
                                       [4,5], [4,5,7], [3,4,5], [2,6]]
+            self.R = [[el] for el in range(self.num_classes)]
+            for el in self.vague_classes_ids:
+                self.R.append(el)
+            print(f"Actual label sets\n R: {self.R}")
+            self.R_test = self.R
         
+        elif overlap_test_only:
+            # train: no overlap, test: overlap
+            self.data_dir_train = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_train_composites')
+            self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites_overlap')
+            # self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites')
+            ALL_LABEL_NAMES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck', 
+                               'Cat_Dog', 'Deer_Horse', 'Automobile_Truck', 'Airplane_Bird']
+            self.vague_classes_ids = [[3,5], [4,7], [1,9], [0,2]]
+            self.vague_classes_ids_test = [[3,5], [4,7], [1,9], [0,2],
+                                      [4,5], [4,5,7], [3,4,5], [2,6]]
+            self.R_test = [[el] for el in range(self.num_classes)]
+            for el in self.vague_classes_ids_test:
+                self.R_test.append(el)
+            
         self.num_comp = len(self.vague_classes_ids)
         self.kappa = self.num_classes + self.num_comp
 
@@ -157,18 +182,11 @@ class CIFAR10:
         # Load the ImageFolder dataset
         self.ds_original = datasets.ImageFolder(root=self.data_dir_train)
         self.class_to_idx = self.ds_original.class_to_idx
-        
         self.idx_to_class = {value:key for key, value in self.class_to_idx.items()}
-        
-        self.R = [[el] for el in range(self.num_classes)]
-        for el in self.vague_classes_ids:
-            self.R.append(el)
-        print(f"Actual label sets\n R: {self.R}")
         
         train_split, valid_split, train_idx, valid_idx = train_valid_split_local(self.ds_original, valid_perc=1-ratio_train) #todo: fixed the seed for now
         # train_self.ds_original_n = AddLabelDataset(train_split) #add an aditional label
         # valid_self.ds_original_n = AddLabelDataset(valid_split)
-        
         
         if self.pretrain:
             norm = transforms.Normalize(mean=[0.507, 0.487, 0.441], std=[0.267, 0.256, 0.276])

@@ -45,6 +45,15 @@ def make(args):
             num_workers=args.num_workers,
             seed=args.seed,
             )
+    elif args.dataset == "CIFAR10_overlap_test_only":
+        mydata = CIFAR10(
+            args.data_dir, 
+            batch_size=args.batch_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            overlap_test_only=True,
+            )
     elif args.dataset == "tinyGroup2":
         mydata = tinyGroup2(
             args.data_dir, 
@@ -169,19 +178,19 @@ def main(args):
         # #Evaluation, Inference
         print(f"\n### Evaluate the model after all epochs:")
         evaluate_vague_nonvague(
-            model, mydata.test_loader, mydata.R, 
+            model, mydata.test_loader, mydata.R_test, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, train_flag=3)
 
         print(f"\n### Use the model selected from ValidSet in Ep. {checkpoint['epoch_best']}:")
         evaluate_vague_nonvague(
-            model_best_from_valid, mydata.test_loader, mydata.R, 
+            model_best_from_valid, mydata.test_loader, mydata.R_test, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, bestModel=True, train_flag=3)
 
         print(f"\n### Use the model selected from ValidSet (GT) in Ep. {checkpoint['epoch_best_GT']}:")
         evaluate_vague_nonvague(
-            model_best_from_valid_GT, mydata.test_loader, mydata.R, 
+            model_best_from_valid_GT, mydata.test_loader, mydata.R_test, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, bestModelGT=True, train_flag=3)
 
