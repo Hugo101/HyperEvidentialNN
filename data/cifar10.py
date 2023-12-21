@@ -129,7 +129,8 @@ class CIFAR10:
         
         if not overlap:
             self.data_dir_train = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_train_composites')
-            self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites')
+            self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites_v2')
+            # self.data_dir_test = os.path.join(data_dir, 'cifar-10-batches-py/cifar10_test_composites')
             ALL_LABEL_NAMES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck', 
                                'Cat_Dog', 'Deer_Horse', 'Automobile_Truck', 'Airplane_Bird']
             self.vague_classes_ids = [[3,5], [4,7], [1,9], [0,2]]
