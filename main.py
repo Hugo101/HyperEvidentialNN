@@ -15,6 +15,7 @@ from data.tinyImageNet import tinyImageNetVague
 from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
 from data.mnist import MNIST
+from data.fmnist import FMNIST
 from data.cifar10h import CIFAR10h
 from data.cifar10 import CIFAR10
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_ResNet18
@@ -95,6 +96,15 @@ def make(args):
         )
     elif args.dataset == "CIFAR10_overlap":
         mydata = CIFAR10(
+            args.data_dir,
+            batch_size=args.batch_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            overlap=True,
+        )
+    elif args.dataset == "FMNIST_overlap":
+        mydata = FMNIST(
             args.data_dir,
             batch_size=args.batch_size,
             pretrain=args.pretrain,

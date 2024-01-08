@@ -15,6 +15,7 @@ from data.cifar100 import CIFAR100Vague
 from data.breeds import BREEDSVague
 from data.nabirds import NabirdsVague
 from data.mnist import MNIST
+from data.fmnist import FMNIST
 from data.cifar10h import CIFAR10h
 from data.cifar10 import CIFAR10
 from data.tinyGroup2 import tinyGroup2
@@ -295,6 +296,16 @@ def make(args):
             seed=args.seed,
             overlap=True,
         )
+    elif args.dataset == "FMNIST_overlap":
+        mydata = FMNIST(
+            args.data_dir,
+            batch_size=args.batch_size,
+            duplicate=True,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            overlap=True,
+        )
     elif args.dataset == "tinyGroup2":
         mydata = tinyGroup2(
             args.data_dir,
@@ -474,7 +485,7 @@ if __name__ == "__main__":
     #     config = wandb.config
     #     main(args)
     
-    project_name = "CIFAR100-5M-Ker3-ENN-sweep"
+    project_name = "Fmnist-ENN-sweep"
     # main(project_name, opt)
     sweep_id = "ai5o0sh8"
     entity = "changbinli"
