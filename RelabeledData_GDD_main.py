@@ -13,6 +13,7 @@ from config_args import parser
 from common_tools import create_path, set_device, set_random_seeds
 from data.cifar10h import CIFAR10h
 from data.cifar10 import CIFAR10
+from data.fmnist import FMNIST
 from data.tinyGroup2 import tinyGroup2
 from backbones import HENN_EfficientNet, HENN_ResNet50, HENN_VGG16, HENN_LeNet, HENN_LeNet_v2, HENN_ResNet18
 # from backbones import EfficientNet_pretrain, ResNet50
@@ -47,6 +48,23 @@ def make(args):
             )
     elif args.dataset == "CIFAR10_overlap_test_only":
         mydata = CIFAR10(
+            args.data_dir, 
+            batch_size=args.batch_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            overlap_test_only=True,
+            )
+    elif args.dataset == "FMNIST":
+        mydata = FMNIST(
+            args.data_dir, 
+            batch_size=args.batch_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            )
+    elif args.dataset == "FMNIST_overlap_test_only":
+        mydata = FMNIST(
             args.data_dir, 
             batch_size=args.batch_size,
             pretrain=args.pretrain,
