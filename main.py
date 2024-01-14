@@ -155,17 +155,10 @@ def make(args):
 
 
 def generateSpecPath(args):
-    exp_type = args.exp_type
-    num_comp = args.num_comp
-    gauss_kernel_size = args.gauss_kernel_size
-    init_lr = args.init_lr
-    kl_lam = args.kl_lam
-    entropy_lam = args.entropy_lam
-
     base_path = os.path.join(args.output_folder, args.saved_spec_dir)
-    if exp_type in [5, 6]:
-        tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", "sweep", f"HENNexp{exp_type}"])
-        tag = "_".join(["lr", str(init_lr), "EntropyLam", str(entropy_lam)])
+    if args.exp_type in [5, 6]:
+        tag0 = "_".join([f"{args.num_comp}M", f"ker{args.gauss_kernel_size}", "sweep", f"HENNexp{args.exp_type}"])
+        tag = "_".join(["lr", str(args.init_lr), "EntropyLam", str(args.entropy_lam)])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
     base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, tag)

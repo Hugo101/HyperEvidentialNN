@@ -143,6 +143,7 @@ def main(args):
     print(f"Model: Train:{args.train}, Test: {args.test}")
     set_random_seeds(args.seed)
     device = args.device
+    
     mydata, model, criterion, optimizer, scheduler = make(args)
     num_singles = mydata.num_classes
     num_classes = num_singles + mydata.num_comp
@@ -196,19 +197,22 @@ def main(args):
         # #Evaluation, Inference
         print(f"\n### Evaluate the model after all epochs:")
         evaluate_vague_nonvague(
-            model, mydata.test_loader, mydata.R_test, 
+            model, 
+            mydata.test_loader, mydata.R_test, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, train_flag=3)
 
         print(f"\n### Use the model selected from ValidSet in Ep. {checkpoint['epoch_best']}:")
         evaluate_vague_nonvague(
-            model_best_from_valid, mydata.test_loader, mydata.R_test, 
+            model_best_from_valid, 
+            mydata.test_loader, mydata.R_test, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, bestModel=True, train_flag=3)
 
         print(f"\n### Use the model selected from ValidSet (GT) in Ep. {checkpoint['epoch_best_GT']}:")
         evaluate_vague_nonvague(
-            model_best_from_valid_GT, mydata.test_loader, mydata.R_test, 
+            model_best_from_valid_GT, 
+            mydata.test_loader, mydata.R_test, 
             mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
             None, device, bestModelGT=True, train_flag=3)
 
