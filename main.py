@@ -229,16 +229,16 @@ def main(args):
 
         # #Evaluation, Inference
         print(f"\n### Evaluate the model after all epochs:")
-        evaluate_vague_nonvague(
-            model, mydata.test_loader, mydata.R, 
-            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device)
+        evaluate_vague_nonvague(model, 
+                                mydata.test_loader, mydata.R, 
+                                mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
+                                None, device)
 
         print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:")
-        evaluate_vague_nonvague(
-            model_best_from_valid, mydata.test_loader, mydata.R, 
-            mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
-            None, device, bestModel=True)
+        evaluate_vague_nonvague(model_best_from_valid, 
+                                mydata.test_loader, mydata.R, 
+                                mydata.num_classes, mydata.num_comp, mydata.vague_classes_ids,
+                                None, device, bestModel=True)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ from helper_functions import meanGDD, js_subset, confidence_interval
 
 def evaluate_vague_result_log(
     js_result,
+    js_result_f1,
     prec_recall_f,
     acc,
     std, ci95,
@@ -40,6 +41,10 @@ def evaluate_vague_result_log(
         f"{tag} JSoverall": js_result[0], 
         f"{tag} JScomp": js_result[1], 
         f"{tag} JSsngl": js_result[2],
+        f"{tag} JScompOrig": js_result_f1[0], 
+        f"{tag} JSsnglOrig": js_result_f1[1],
+        f"{tag} JScompF1": js_result_f1[2], 
+        f"{tag} JSsnglF1": js_result_f1[3],
         f"{tag} CmpPreci": prec_recall_f[0], 
         f"{tag} CmpRecal": prec_recall_f[1], 
         f"{tag} CmpFscor": prec_recall_f[2], 
@@ -97,6 +102,13 @@ def acc_subset(idx, labels_true, labels_pred):
     return acc_subs
 
 
+def fscore_convert(a, b):
+    if a == 0 or b == 0:
+        f1 = 0
+    else:
+        f1 = 2 * a * b / (a + b)
+    return f1
+
 @torch.no_grad()
 def evaluate_vague_nonvague(
     model, 
@@ -149,15 +161,21 @@ def evaluate_vague_nonvague(
     # acc_singl = acc_subset(singl_idx, labels_all, preds_all)
     js_singl = js_subset(singl_idx, labels_all, preds_all, R)
     
-    stat_result, GT_Pred_res = calculate_metrics_ENN(outputs_all, labels_all, R)
+    stat_result, GT_Pred_res, orig_stat_result = calculate_metrics_ENN(outputs_all, labels_all, R)
     avg_js_nonvague = stat_result[0] / (stat_result[2]+1e-10)
     avg_js_vague = stat_result[1] / (stat_result[3]+1e-10)
     overall_js = (stat_result[0] + stat_result[1])/(stat_result[2] + stat_result[3]+1e-10)
     js_result = [overall_js, avg_js_vague, avg_js_nonvague]
 
+    avg_js_nonvague_orig = orig_stat_result[0] / (orig_stat_result[2]+1e-10)
+    avg_js_vague_orig = orig_stat_result[1] / (orig_stat_result[3]+1e-10)
+    js_vague_f1 = fscore_convert(avg_js_vague, avg_js_vague_orig)
+    js_nonvague_f1 = fscore_convert(avg_js_nonvague, avg_js_nonvague_orig)
+    js_result_f1 = [avg_js_vague_orig, avg_js_nonvague_orig, js_vague_f1, js_nonvague_f1]
+    
     # check precision, recall, f-score for composite classes
     prec_recall_f = precision_recall_f_v1(labels_all, preds_all, num_singles) 
-    evaluate_vague_result_log(js_result, prec_recall_f, acc, std, ci95, js_comp, js_singl, epoch, bestModel, bestModelGT, train_flag=train_flag)
+    evaluate_vague_result_log(js_result, js_result_f1, prec_recall_f, acc, std, ci95, js_comp, js_singl, epoch, bestModel, bestModelGT, train_flag=train_flag)
 
     ##### nonVagueAcc for all examples
     alpha = torch.add(outputs_all[:,:num_singles], 1)
@@ -211,6 +229,11 @@ def calculate_metrics_ENN(output, labels, R):
     vague_total = 0
     nonvague_total = 0
 
+    orig_correct_vague = 0.0
+    orig_correct_nonvague = 0.0
+    orig_total_vague = 0
+    orig_total_nonvague = 0
+    
     for i in range(len(labels)):
         k = labels[i].item() # todo: CPU or GPU?
         predicted_set = set(R[torch.argmax(output[i])])
@@ -228,6 +251,16 @@ def calculate_metrics_ENN(output, labels, R):
         else:
             correct_vague += rate
             vague_total += 1
+        
+        if len(ground_truth_set) == 1:
+            orig_correct_nonvague += rate
+            orig_total_nonvague += 1
+        else:
+            orig_correct_vague += rate
+            orig_total_vague += 1
+            
     stat_result = [correct_nonvague, correct_vague, nonvague_total, vague_total] #todo check this with calculate_metric
+    orig_stat_result = [orig_correct_nonvague, orig_correct_vague, orig_total_nonvague, orig_total_vague]
+    
     GT_Pred_res = [GTs, Predicteds]
-    return stat_result, GT_Pred_res
+    return stat_result, GT_Pred_res, orig_stat_result
