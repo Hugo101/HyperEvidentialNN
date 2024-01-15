@@ -24,7 +24,7 @@ from data.cifar10h import CIFAR10h
 from data.cifar10 import CIFAR10
 from data.tinyGroup2 import tinyGroup2
 from backbones import EfficientNet_pretrain, ResNet50, ResNet18, VGG16, LeNet
-from helper_functions import js_subset, acc_subset
+from helper_functions import js_subset, acc_subset, fscore_convert
 
 
 def train_valid_log(phase, epoch, accDup, accGT, loss):
@@ -37,7 +37,7 @@ def train_valid_log(phase, epoch, accDup, accGT, loss):
 
 
 def test_result_log(
-    js_result, 
+    js_result, js_result_f1,
     prec_recall_f, js_comp, js_singl, 
     nonvague_acc, nonvague_acc_singl, 
     bestModel=False):
@@ -49,6 +49,10 @@ def test_result_log(
         f"{tag} JSoverall": js_result[0], 
         f"{tag} JScomp": js_result[1], # JS of composite examples (predicted, not true label)
         f"{tag} JSsngl": js_result[2], # JS of singleton examples (predicted, not true label)
+        f"{tag} JScompOrig": js_result_f1[0], 
+        f"{tag} JSsnglOrig": js_result_f1[1],
+        f"{tag} JScompF1": js_result_f1[2], 
+        f"{tag} JSsnglF1": js_result_f1[3],
         f"{tag} CmpPreci": prec_recall_f[0], 
         f"{tag} CmpRecal": prec_recall_f[1], 
         f"{tag} CmpFscor": prec_recall_f[2], 
@@ -181,7 +185,7 @@ def train_DetNN(
     return model, model_best, best_epoch
 
 
-def num_accurate_baseline(output, labels, R, cutoff, detNN=True):
+def js_baseline(output, labels, R, cutoff, detNN=True):
     if detNN:
         p_exp = F.softmax(output, dim=1)
     else:
@@ -191,7 +195,7 @@ def num_accurate_baseline(output, labels, R, cutoff, detNN=True):
         p_exp = torch.div(alpha, alpha_sum[:, None])
 
     predicted_labels = torch.argmax(p_exp, dim=1)
-    total_correct = 0.0
+    js = 0.0
     for i in range(len(labels)):
         indices = (p_exp[i] >= cutoff).nonzero(as_tuple=True)[0]
         predicted_set = set(indices.tolist())
@@ -202,8 +206,8 @@ def num_accurate_baseline(output, labels, R, cutoff, detNN=True):
         ground_truth_set = set(R[labels[i]])
         intersect = predicted_set.intersection(ground_truth_set)
         union = predicted_set.union(ground_truth_set)
-        total_correct += float(len(intersect)) / len(union)
-    return total_correct
+        js += float(len(intersect)) / len(union)
+    return js
 
 
 @torch.no_grad()
@@ -212,17 +216,17 @@ def evaluate_cutoff(
     cutoff, device,
     detNN=True):
     model.eval()
-    total_correct = 0.0
+    js = 0.0
     total_samples = 0
     # losses = []
     for batch in val_loader:
         images, _, labels = batch
         images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         output = model(images)
-        total_correct += num_accurate_baseline(output, labels, R, cutoff, detNN=detNN)
+        js += js_baseline(output, labels, R, cutoff, detNN=detNN)
         total_samples += len(labels)
-    accuracy = total_correct / total_samples
-    return accuracy
+    js_avg = js / total_samples
+    return js_avg # overall JS
 
 
 def get_cutoff(
@@ -263,6 +267,12 @@ def calculate_metrics(output, labels, R, cutoff, detNN=True):
     correct_nonvague = 0.0
     vague_total = 0
     nonvague_total = 0
+    
+    orig_correct_vague = 0.0
+    orig_correct_nonvague = 0.0
+    orig_total_vague = 0
+    orig_total_nonvague = 0
+    
     predSet_or_not = []
     for i in range(len(labels)):
         indices = (p_exp[i] >= cutoff).nonzero(as_tuple=True)[0]
@@ -277,18 +287,28 @@ def calculate_metrics(output, labels, R, cutoff, detNN=True):
         ground_truth_set = set(R[labels[i].item()])
         intersect = predicted_set.intersection(ground_truth_set)
         union = predicted_set.union(ground_truth_set)
+        rate = float(len(intersect)) / len(union)
         if len(predicted_set) == 1:
-            correct_nonvague += float(len(intersect)) / len(union)
+            correct_nonvague += rate
             nonvague_total += 1
         else:
-            correct_vague += float(len(intersect)) / len(union)
+            correct_vague += rate
             vague_total += 1
+        
+        if len(ground_truth_set) == 1:
+            orig_correct_nonvague += rate
+            orig_total_nonvague += 1
+        else:
+            orig_correct_vague += rate
+            orig_total_vague += 1
+
     stat_result = [correct_nonvague, correct_vague, nonvague_total, vague_total]
+    orig_stat_result = [orig_correct_nonvague, orig_correct_vague, orig_total_nonvague, orig_total_vague]
     
     predSet_or_not = torch.tensor(predSet_or_not) #1:vague, 0：non-vague
     # check precision, recall, f-score for composite classes
     prec_r_f = precision_recall_f_v1(labels, predSet_or_not, num_singles)
-    return stat_result, prec_r_f
+    return stat_result, prec_r_f, orig_stat_result
 
 
 def precision_recall_f_v1(y_test, y_pred, num_singles):
@@ -318,9 +338,15 @@ def evaluate_vague_nonvague_final(
     num_singles,
     device,
     detNN=True,
-    bestModel=False):
-    cutoff = get_cutoff(model, val_loader, R, device, detNN=detNN)
-    print(f"### selected cutoff: {cutoff}")
+    bestModel=False,
+    saved_cutoff=None):
+    if os.path.exists(saved_cutoff):
+        cutoff = torch.load(saved_cutoff)
+        print(f"### selected cutoff (load from saved file): {cutoff}")
+    else:
+        cutoff = get_cutoff(model, val_loader, R, device, detNN=detNN)
+        torch.save(cutoff, saved_cutoff)
+        print(f"### selected cutoff (calculated now): {cutoff}")
     # if detNN:
     #     cutoff = 0.35
     # else:
@@ -379,15 +405,21 @@ def evaluate_vague_nonvague_final(
     #nonvagueAcc for original singleton examples
     nonvague_acc_singl = acc_subset(singl_idx, true_labels_all, preds_all)
     
-    stat_result, prec_recall_f = calculate_metrics(outputs_all, labels_all, R, cutoff, detNN=detNN)
+    stat_result, prec_recall_f, orig_stat_result = calculate_metrics(outputs_all, labels_all, R, cutoff, detNN=detNN)
 
     avg_js_nonvague = stat_result[0] / (stat_result[2]+1e-10)
     avg_js_vague = stat_result[1] / (stat_result[3]+1e-10)
     overall_js = (stat_result[0] + stat_result[1])/(stat_result[2] + stat_result[3]+1e-10)
     js_result = [overall_js, avg_js_vague, avg_js_nonvague]
 
+    avg_js_nonvague_orig = orig_stat_result[0] / (orig_stat_result[2]+1e-10)
+    avg_js_vague_orig = orig_stat_result[1] / (orig_stat_result[3]+1e-10)
+    js_vague_f1 = fscore_convert(avg_js_vague, avg_js_vague_orig)
+    js_nonvague_f1 = fscore_convert(avg_js_nonvague, avg_js_nonvague_orig)
+    js_result_f1 = [avg_js_vague_orig, avg_js_nonvague_orig, js_vague_f1, js_nonvague_f1]
+    
     test_result_log(
-        js_result, prec_recall_f, js_comp, js_singl, 
+        js_result, js_result_f1, prec_recall_f, js_comp, js_singl, 
         nonvague_acc, nonvague_acc_singl, 
         bestModel=bestModel)
 
@@ -607,16 +639,18 @@ def main(project_name, args_all):
             # model after the final epoch
             # bestModel=False
             print(f"\n### Evaluate the model after all epochs:")
+            saved_cutoff = os.path.join(base_path_spec_hyper, "cutoff_final.pt")
             evaluate_vague_nonvague_final(
                 model, 
                 test_loader, valid_loader, R, num_singles, device, 
-                detNN=True, bestModel=False)
+                detNN=True, bestModel=False, saved_cutoff=saved_cutoff)
 
             print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
+            saved_cutoff = os.path.join(base_path_spec_hyper, "cutoff_bestEpoch.pt")
             evaluate_vague_nonvague_final(
                 model_best_from_valid, 
                 test_loader, valid_loader, R, num_singles, device, 
-                detNN=True, bestModel=True)
+                detNN=True, bestModel=True, saved_cutoff=saved_cutoff)
 
 
 if __name__ == "__main__":
