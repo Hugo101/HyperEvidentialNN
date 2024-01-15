@@ -37,7 +37,8 @@ def train_valid_log(phase, epoch, accDup, accGT, loss):
 
 
 def test_result_log(
-    js_result, prec_recall_f, js_comp, js_singl, 
+    js_result, 
+    prec_recall_f, js_comp, js_singl, 
     nonvague_acc, nonvague_acc_singl, 
     bestModel=False):
     if bestModel:
@@ -46,8 +47,8 @@ def test_result_log(
         tag = "TestF"
     wandb.log({
         f"{tag} JSoverall": js_result[0], 
-        f"{tag} JScomp": js_result[1], 
-        f"{tag} JSsngl": js_result[2],
+        f"{tag} JScomp": js_result[1], # JS of composite examples (predicted, not true label)
+        f"{tag} JSsngl": js_result[2], # JS of singleton examples (predicted, not true label)
         f"{tag} CmpPreci": prec_recall_f[0], 
         f"{tag} CmpRecal": prec_recall_f[1], 
         f"{tag} CmpFscor": prec_recall_f[2], 
@@ -320,7 +321,11 @@ def evaluate_vague_nonvague_final(
     bestModel=False):
     cutoff = get_cutoff(model, val_loader, R, device, detNN=detNN)
     print(f"### selected cutoff: {cutoff}")
-    
+    # if detNN:
+    #     cutoff = 0.35
+    # else:
+    #     cutoff = 0.046
+    # print(f"### selected cutoff (hard code for debugging): {cutoff}")
     # begin evaluation
     model.eval()
     outputs_all = []
@@ -350,6 +355,17 @@ def evaluate_vague_nonvague_final(
     labels_all = torch.cat(labels_all, dim=0)
     preds_all = torch.cat(preds_all, dim=0)
     true_labels_all = torch.cat(true_labels_all, dim=0)
+    
+    ### only for debugging
+    tmp = [outputs_all, labels_all, preds_all, true_labels_all]
+    import pickle
+    if detNN:
+        with open("/home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/FMNIST_overlap/sweep_DNN_0107_pretrainFalse_debug/tmp_all_preds.pkl", "wb") as f:
+            pickle.dump(tmp, f)
+    else:
+        with open("/home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN_Results/FMNIST_overlap/sweep_ENN_0107_pretrainFalse_debug/tmp_all_preds.pkl", "wb") as f:
+            pickle.dump(tmp, f)
+    ### end of debugging
     
     # JS of composite examples (original, not prediction)
     comp_idx = labels_all > num_singles-1
@@ -522,18 +538,15 @@ def make(args):
 
 
 def generateSpecPath(args):
-    output_folder=args.output_folder
-    saved_spec_dir=args.saved_spec_dir 
-    num_comp=args.num_comp
-    gauss_kernel_size=args.gauss_kernel_size
-    init_lr=args.init_lr
-    seed=args.seed
-    
-    base_path = os.path.join(output_folder, saved_spec_dir)
-    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}", f"Seed{seed}", f"BB{args.backbone}", "sweep_DNN"])
+    base_path = os.path.join(args.output_folder, args.saved_spec_dir)
+    tag0 = "_".join([f"{args.num_comp}M", 
+                     f"ker{args.gauss_kernel_size}", 
+                     f"Seed{args.seed}", 
+                     f"BB{args.backbone}", 
+                     "sweep_DNN"])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
-    base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, str(init_lr))
+    base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, str(args.init_lr))
     create_path(base_path_spec_hyper)
     return base_path_spec_hyper
 
@@ -571,6 +584,8 @@ def main(project_name, args_all):
             }
             saved_path = os.path.join(base_path_spec_hyper, "model_CrossEntropy.pt")
             torch.save(state, saved_path)
+            # saved_path_2 = os.path.join(base_path_spec_hyper, "model_CrossEntropy.pth")
+            # torch.save(model_best, saved_path_2)
             print(f"Saved: {saved_path}")
             end = time.time()
             print(f'Total training time for DNN: {(end-start)//60:.0f}m {(end-start)%60:.0f}s')
@@ -584,20 +599,23 @@ def main(project_name, args_all):
             saved_path = os.path.join(base_path_spec_hyper, "model_CrossEntropy.pt")
             checkpoint = torch.load(saved_path, map_location=device)
             model.load_state_dict(checkpoint["model_state_dict"])
-
+            model.eval()
             model_best_from_valid = copy.deepcopy(model)
             model_best_from_valid.load_state_dict(checkpoint["model_state_dict_best"]) 
-
+            model_best_from_valid.eval()
+            
             # model after the final epoch
             # bestModel=False
             print(f"\n### Evaluate the model after all epochs:")
             evaluate_vague_nonvague_final(
-                model, test_loader, valid_loader, R, num_singles, device, 
+                model, 
+                test_loader, valid_loader, R, num_singles, device, 
                 detNN=True, bestModel=False)
 
             print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
             evaluate_vague_nonvague_final(
-                model_best_from_valid, test_loader, valid_loader, R, num_singles, device, 
+                model_best_from_valid, 
+                test_loader, valid_loader, R, num_singles, device, 
                 detNN=True, bestModel=True)
 
 
