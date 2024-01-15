@@ -364,17 +364,15 @@ def make(args):
 
 
 def generateSpecPath(args):
-    output_folder=args.output_folder
-    saved_spec_dir=args.saved_spec_dir 
-    num_comp=args.num_comp
-    gauss_kernel_size=args.gauss_kernel_size
-    init_lr=args.init_lr
-    seed=args.seed
-    base_path = os.path.join(output_folder, saved_spec_dir)
-    tag0 = "_".join([f"{num_comp}M", f"ker{gauss_kernel_size}",f"Seed{seed}",f"BB{args.backbone}", "sweep_ENN"])
+    base_path = os.path.join(args.output_folder, args.saved_spec_dir)
+    tag0 = "_".join([f"{args.num_comp}M", 
+                     f"ker{args.gauss_kernel_size}",
+                     f"Seed{args.seed}",
+                     f"BB{args.backbone}", 
+                     "sweep_ENN"])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
-    tag = "_".join([f"lr{init_lr}", f"EntrLam{args.entropy_lam}"])
+    tag = "_".join([f"lr{args.init_lr}", f"EntrLam{args.entropy_lam}"])
     base_path_spec_hyper = os.path.join(base_path_spec_hyper_0, tag)
     create_path(base_path_spec_hyper)
     return base_path_spec_hyper
@@ -436,20 +434,26 @@ def main(project_name, args_all):
 
             checkpoint = torch.load(saved_path, map_location=device)
             model.load_state_dict(checkpoint["model_state_dict"])
-
+            model.eval()
+            
             model_best_from_valid = copy.deepcopy(model)
             model_best_from_valid.load_state_dict(checkpoint["model_state_dict_best"]) 
-
+            model_best_from_valid.eval()
+            
             # model after the final epoch
             print(f"\n### Evaluate the model after all epochs:")
+            saved_cutoff = os.path.join(base_path_spec_hyper, "cutoff_final.pt")
             evaluate_vague_nonvague_final(
-                    model, test_loader, valid_loader, R, num_singles, device, 
-                    detNN=False, bestModel=False)
+                    model, 
+                    test_loader, valid_loader, R, num_singles, device, 
+                    detNN=False, bestModel=False, saved_cutoff=saved_cutoff)
 
             print(f"\n### Use the model selected from validation set in Epoch {checkpoint['epoch_best']}:\n")
+            saved_cutoff = os.path.join(base_path_spec_hyper, "cutoff_bestEpoch.pt")
             evaluate_vague_nonvague_final(
-                    model_best_from_valid, test_loader, valid_loader, R, num_singles, device,
-                    detNN=False, bestModel=True)
+                    model_best_from_valid, 
+                    test_loader, valid_loader, R, num_singles, device,
+                    detNN=False, bestModel=True, saved_cutoff=saved_cutoff)
 
 
 if __name__ == "__main__":
