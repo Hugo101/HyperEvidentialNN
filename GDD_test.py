@@ -6,7 +6,7 @@ from sklearn.metrics import precision_score, recall_score, f1_score
 from collections import Counter
 import wandb
 
-from helper_functions import meanGDD, js_subset, confidence_interval
+from helper_functions import meanGDD, js_subset, confidence_interval, fscore_convert
 # from helper_functions import projection_prob, vague_belief_mass
 
 
@@ -101,13 +101,6 @@ def acc_subset(idx, labels_true, labels_pred):
     acc_subs = corr_subs / len(labels_true_subs)
     return acc_subs
 
-
-def fscore_convert(a, b):
-    if a == 0 or b == 0:
-        f1 = 0
-    else:
-        f1 = 2 * a * b / (a + b)
-    return f1
 
 @torch.no_grad()
 def evaluate_vague_nonvague(

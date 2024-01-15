@@ -265,6 +265,13 @@ def vague_belief_mass(b, K, C, R, a_copy, device):
     return b_v
 
 
+def fscore_convert(a, b):
+    if a == 0 or b == 0:
+        f1 = 0
+    else:
+        f1 = 2 * a * b / (a + b)
+    return f1
+
 # def calculate_metrics(output, labels, K, W, a, R):
 #     correct_vague = 0.0
 #     correct_nonvague = 0.0

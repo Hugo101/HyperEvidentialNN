@@ -2,7 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 from sklearn import metrics
 from sklearn.metrics import precision_score, recall_score, f1_score
-from helper_functions import projection_prob, meanGDD, js_subset, vague_belief_mass
+from helper_functions import projection_prob, meanGDD, js_subset, vague_belief_mass, fscore_convert
 # from loss import lossFunc
 from collections import Counter
 import wandb
@@ -69,12 +69,6 @@ def acc_subset(idx, labels_true, labels_pred):
     acc_subs = corr_subs / len(labels_true_subs)
     return acc_subs
 
-def fscore_convert(a, b):
-    if a == 0 or b == 0:
-        f1 = 0
-    else:
-        f1 = 2 * a * b / (a + b)
-    return f1
 
 @torch.no_grad()
 def evaluate_vague_nonvague(
