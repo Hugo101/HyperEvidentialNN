@@ -103,6 +103,16 @@ def make(args):
             seed=args.seed,
             overlap=True,
         )
+    elif args.dataset == "CIFAR10_overlap_aug":
+        mydata = CIFAR10(
+            args.data_dir,
+            batch_size=args.batch_size,
+            pretrain=args.pretrain,
+            num_workers=args.num_workers,
+            seed=args.seed,
+            overlap=True,
+            augment=True,
+        )
     elif args.dataset == "FMNIST_overlap":
         mydata = FMNIST(
             args.data_dir,
@@ -157,7 +167,12 @@ def make(args):
 def generateSpecPath(args):
     base_path = os.path.join(args.output_folder, args.saved_spec_dir)
     if args.exp_type in [5, 6]:
-        tag0 = "_".join([f"{args.num_comp}M", f"ker{args.gauss_kernel_size}", "sweep", f"HENNexp{args.exp_type}"])
+        tag0 = "_".join([f"SEED{args.seed}",
+                         f"BB{args.backbone}",
+                         f"{args.num_comp}M", 
+                         f"ker{args.gauss_kernel_size}", 
+                         "sweep", 
+                         f"HENNexp{args.exp_type}"])
         tag = "_".join(["lr", str(args.init_lr), "EntropyLam", str(args.entropy_lam)])
     base_path_spec_hyper_0 = os.path.join(base_path, tag0)
     create_path(base_path_spec_hyper_0)
