@@ -128,6 +128,7 @@ class FMNIST:
         self.seed = seed
         self.num_classes = 10 # fixed
         saved_idx_dir = "/home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/data/saved_models/Fmnist_saved_idx_Categories_Top20.pkl"
+        saved_idx_dir_nonoverlap = "/home/cxl173430/data/uncertainty_Related/HENN_Git_VScode/HyperEvidentialNN/data/saved_models/Fmnist_saved_idx_Categories_Top13.pkl"
         if not overlap and not overlap_test_only:
             # train: no overlap, test: no overlap
             self.vague_classes_ids = [[0,6], [2,4], [7,9]]
@@ -164,6 +165,7 @@ class FMNIST:
             
         self.num_comp = len(self.vague_classes_ids)
         self.kappa = self.num_classes + self.num_comp
+        self.kappa_test = len(self.R_test)
         
         if self.pretrain:
             norm = transforms.Normalize(mean=[0.507, 0.487, 0.441], std=[0.267, 0.256, 0.276])
@@ -194,13 +196,30 @@ class FMNIST:
         self.idx_to_class = {value:key for key, value in self.class_to_idx.items()}
         
         # Load the saved info
-        saved_idx = pickle.load(open(saved_idx_dir, "rb"))
-        sample_idx_train = saved_idx[0]
-        sample_idx_test = saved_idx[1]
-        sample_idx_train_vague = saved_idx[2]
-        sample_idx_test_vague = saved_idx[3]
-        pred_set_train_selected = saved_idx[4] # "0", "0_2"
-        pred_set_test_selected = saved_idx[5]
+        if not overlap and not overlap_test_only:
+            # train: no overlap, test: no overlap
+            saved_idx = pickle.load(open(saved_idx_dir_nonoverlap, "rb"))
+            sample_idx_train = saved_idx[0]
+            sample_idx_test = saved_idx[1]
+            pred_set_train_selected = saved_idx[2] # "0", "0_2"
+            pred_set_test_selected = saved_idx[3]
+        elif overlap and not overlap_test_only:
+            # train: overlap, test: overlap
+            saved_idx = pickle.load(open(saved_idx_dir, "rb"))
+            sample_idx_train = saved_idx[0]
+            sample_idx_test = saved_idx[1]
+            pred_set_train_selected = saved_idx[4] # "0", "0_2"
+            pred_set_test_selected = saved_idx[5]
+        elif overlap_test_only:
+            # train: no overlap, test: overlap
+            saved_idx_train = pickle.load(open(saved_idx_dir_nonoverlap, "rb"))
+            sample_idx_train = saved_idx_train[0]
+            pred_set_train_selected = saved_idx_train[2]
+            
+            saved_idx_test = pickle.load(open(saved_idx_dir, "rb"))
+            sample_idx_test = saved_idx_test[1]
+            pred_set_test_selected = saved_idx_test[5]
+
         self.train_ds_selected = Subset(self.train_ds_original, sample_idx_train)
         self.test_ds_selected = Subset(self.test_ds_original, sample_idx_test)
 
@@ -211,7 +230,7 @@ class FMNIST:
         pred_set_train_selected_int = string_2_int(pred_set_train_selected)
         assert max(pred_set_train_selected_int) == self.kappa - 1
         pred_set_test_selected_int = string_2_int(pred_set_test_selected)
-        assert max(pred_set_test_selected_int) == self.kappa - 1        
+        assert max(pred_set_test_selected_int) == self.kappa_test - 1        
         train_ds = CustomDatasetFmnist(train_split, train_idx, pred_set_train_selected_int)
         # print("~~~~~~~~~~~ two labels:", train_ds[1][1], train_ds[1][2])
         valid_ds = CustomDatasetFmnist(valid_split, valid_idx, pred_set_train_selected_int)
