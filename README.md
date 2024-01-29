@@ -1,5 +1,5 @@
 # HyperEvidentialNN
-The implementation of the HENN paper which was submitted and is under review.
+The initial implementation of the HENN paper which was accepted in ICLR 2024.
 ************************************************************************************************
  
  
