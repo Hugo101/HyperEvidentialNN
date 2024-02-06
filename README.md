@@ -1,5 +1,5 @@
 # HyperEvidentialNN
-The initial implementation of the HENN paper which was accepted in ICLR 2024.
+The initial implementation of the HENN: [Hyper Evidential Deep Learning to Quantify Composite Classification Uncertainty](https://openreview.net/forum?id=A7t7z6g6tM) which was accepted in ICLR 2024.
 ************************************************************************************************
  
  
