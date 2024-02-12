@@ -38,3 +38,17 @@ This file contains the evaluation metric calculation during test phase of the HE
 ## **Results Representation**
 - All results are saved in cloud using wandb.
 - roc_draw_plot.ipynb For figures we generated, such as AUROC curves.
+
+
+## Citing
+If you find HENN useful in your work, please consider citing the following BibTeX entry:
+```python
+@inproceedings{
+li2024hyper,
+title={Hyper Evidential Deep Learning to Quantify Composite Classification Uncertainty},
+author={Changbin Li and Kangshuo Li and Yuzhe Ou and Lance M. Kaplan and Audun J{\o}sang and Jin-Hee Cho and DONG HYUN JEONG and Feng Chen},
+booktitle={The Twelfth International Conference on Learning Representations},
+year={2024},
+url={https://openreview.net/forum?id=A7t7z6g6tM}
+}
+```
